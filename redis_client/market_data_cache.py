@@ -5,33 +5,11 @@ from datetime import datetime
 class MarketDataCache:
     """
     Cache de datos de mercado en tiempo real.
-    Mantiene precios de puntas (bid/ask), último precio operado y niveles del libro.
+    Mantiene precios de puntas (bid/ask), ultimo precio operado y niveles del libro.
     """
 
     def __init__(self):
         self.data: Dict[str, dict] = {}
-        # Estructura: {
-        #   "bm_MERV_AL30_CI": {
-        #       "bid": 100.5,          # Punta compradora (mejor precio de compra)
-        #       "ask": 101.0,          # Punta vendedora (mejor precio de venta)
-        #       "last": 100.7,         # Último precio operado
-        #       "bid_size": 1000,      # Cantidad en la punta compradora
-        #       "ask_size": 500,       # Cantidad en la punta vendedora
-        #       "book": {              # Niveles 2 y 3 del libro
-        #           "bids": [          # Lista de [precio, cantidad]
-        #               [100.5, 1000],
-        #               [100.4, 500],
-        #               [100.3, 200]
-        #           ],
-        #           "asks": [
-        #               [101.0, 500],
-        #               [101.1, 300],
-        #               [101.2, 400]
-        #           ]
-        #       },
-        #       "updated_at": datetime(...)
-        #   }
-        # }
 
     def update_from_message(self, instrument: str, message_data: dict):
         """
@@ -55,31 +33,31 @@ class MarketDataCache:
         market_data = self.data[instrument]
 
         # Actualizar desde mensaje M: (market data simple)
-        if "LA" in message_data:  # Last price
+        if "LA" in message_data:
             try:
                 market_data["last"] = float(message_data["LA"])
             except (ValueError, TypeError):
                 pass
 
-        if "BI" in message_data:  # Bid (punta compradora)
+        if "BI" in message_data:
             try:
                 market_data["bid"] = float(message_data["BI"])
             except (ValueError, TypeError):
                 pass
 
-        if "OF" in message_data:  # Ask/Offer (punta vendedora)
+        if "OF" in message_data:
             try:
                 market_data["ask"] = float(message_data["OF"])
             except (ValueError, TypeError):
                 pass
 
-        if "BIDS" in message_data:  # Bid size
+        if "BIDS" in message_data:
             try:
                 market_data["bid_size"] = int(message_data["BIDS"])
             except (ValueError, TypeError):
                 pass
 
-        if "OFFS" in message_data:  # Ask size
+        if "OFFS" in message_data:
             try:
                 market_data["ask_size"] = int(message_data["OFFS"])
             except (ValueError, TypeError):
@@ -96,7 +74,6 @@ class MarketDataCache:
                         bids.append([price, size])
                 market_data["book"]["bids"] = sorted(bids, key=lambda x: x[0], reverse=True)
 
-                # Actualizar punta compradora desde el libro
                 if bids:
                     market_data["bid"] = bids[0][0]
                     market_data["bid_size"] = bids[0][1]
@@ -113,7 +90,6 @@ class MarketDataCache:
                         asks.append([price, size])
                 market_data["book"]["asks"] = sorted(asks, key=lambda x: x[0])
 
-                # Actualizar punta vendedora desde el libro
                 if asks:
                     market_data["ask"] = asks[0][0]
                     market_data["ask_size"] = asks[0][1]
@@ -123,50 +99,27 @@ class MarketDataCache:
         market_data["updated_at"] = datetime.now()
 
     def get_market_data(self, instrument: str) -> Optional[dict]:
-        """
-        Obtiene los datos de mercado para un instrumento.
-
-        Args:
-            instrument: Identificador del instrumento (ej: "bm_MERV_AL30_CI")
-
-        Returns:
-            Diccionario con bid, ask, last, etc. o None si no hay datos
-        """
+        """Obtiene los datos de mercado para un instrumento."""
         return self.data.get(instrument)
 
     def get_execution_price(self, instrument: str, side: str) -> Optional[float]:
         """
-        Obtiene el precio al que se ejecutaría una orden market.
-
-        Args:
-            instrument: Identificador del instrumento
-            side: "1" para buy, "2" para sell
-
-        Returns:
-            Precio de ejecución (ask para compra, bid para venta) o None si no disponible
+        Obtiene el precio al que se ejecutaria una orden market.
+        Ask para compra (side=1), bid para venta (side=2).
         """
         market_data = self.get_market_data(instrument)
         if not market_data:
             return None
 
-        if side == "1":  # Buy order -> ejecuta contra ask (punta vendedora)
+        if side == "1":
             return market_data.get("ask")
-        elif side == "2":  # Sell order -> ejecuta contra bid (punta compradora)
+        elif side == "2":
             return market_data.get("bid")
 
         return None
 
     def get_book_levels(self, instrument: str, num_levels: int = 3) -> Optional[dict]:
-        """
-        Obtiene los niveles del libro de órdenes.
-
-        Args:
-            instrument: Identificador del instrumento
-            num_levels: Número de niveles a retornar (default: 3)
-
-        Returns:
-            Dict con "bids" y "asks" o None si no disponible
-        """
+        """Obtiene los niveles del libro de ordenes."""
         market_data = self.get_market_data(instrument)
         if not market_data or "book" not in market_data:
             return None
@@ -178,14 +131,9 @@ class MarketDataCache:
         }
 
     def get_all_instruments(self) -> list[str]:
-        """Retorna lista de todos los instrumentos con datos en cache"""
+        """Retorna lista de todos los instrumentos con datos en cache."""
         return list(self.data.keys())
 
     def clear(self):
-        """Limpia todo el cache"""
+        """Limpia todo el cache."""
         self.data.clear()
-
-    def clear_instrument(self, instrument: str):
-        """Limpia los datos de un instrumento específico"""
-        if instrument in self.data:
-            del self.data[instrument]

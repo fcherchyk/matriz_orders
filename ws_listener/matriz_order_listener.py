@@ -2,7 +2,6 @@ import asyncio
 import websockets
 from websockets.exceptions import ConnectionClosedError
 from ws_listener.matriz_websocket_listener import MatrizWebsocketListener
-from ws_listener.message_processor.logger_message_processor import LoggerMessageProcessor
 
 
 class MatrizOrderListener(MatrizWebsocketListener):
@@ -51,11 +50,8 @@ class MatrizOrderListener(MatrizWebsocketListener):
             msg = await self.websocket.recv()
             print(f"[MatrizOrderListener] Mensaje inicial {i+1}: {msg[:100] if len(msg) > 100 else msg}")
 
-        md = f"""{{"_req":"S","topicType":"md","topics":["md.bm_MERV_AL30_CI"],"replace":false}}"""
         om = f"""{{"_req": "S", "topicType": "orderevent", "topics": ["orderevent.{self.session.requester.account}"], "replace": false}}"""
 
-        print(f"[MatrizOrderListener] Suscribiendo a md...")
-        await self.send_message(md)
         print(f"[MatrizOrderListener] Suscribiendo a orderevent para cuenta: {self.session.requester.account}...")
         await self.send_message(om)
         await self.change_status("Running")

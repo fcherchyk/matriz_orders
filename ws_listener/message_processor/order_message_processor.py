@@ -21,7 +21,7 @@ class OrderMessageProcessor(BaseMessageProcessor):
         self.recent_messages: list[dict] = []
         self.max_recent_messages = 50
         self.order_service = None  # Will be set by web app after creation
-        self.market_cache = None  # Will be set by web app after creation
+        self.redis_publisher = None  # Will be set by web app after creation
 
         # Logging a archivo
         self.logging_enabled = True
@@ -50,9 +50,9 @@ class OrderMessageProcessor(BaseMessageProcessor):
         """Configura el order service para actualizar ordenes en la base de datos"""
         self.order_service = order_service
 
-    def set_market_cache(self, market_cache):
-        """Configura el market data cache para obtener precios de ejecución"""
-        self.market_cache = market_cache
+    def set_redis_publisher(self, publisher):
+        """Configura el publisher Redis para publicar eventos de ordenes"""
+        self.redis_publisher = publisher
 
     async def update_status(self, status: str):
         self.status = status
@@ -100,6 +100,10 @@ class OrderMessageProcessor(BaseMessageProcessor):
         """
         self.message_count += 1
         await self.process_message(message)
+
+        # Publicar a Redis si hay publisher configurado
+        if self.redis_publisher:
+            await self.redis_publisher.publish(message)
 
         # Si es un mensaje O:, actualizar el estado de la orden en la base de datos
         if message.startswith('O:') and self.order_service:

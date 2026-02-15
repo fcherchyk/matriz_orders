@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matriz Twin Monitor</title>
+    <title>Matriz Orders</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -75,41 +75,6 @@
             background: #58a6ff;
             border-radius: 2px;
         }
-        .card-title-content { display: flex; align-items: center; gap: 10px; flex: 1; }
-
-        /* Event indicator */
-        .event-indicator {
-            display: none;
-            cursor: pointer;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.9em;
-            background: #30363d;
-            color: #8b949e;
-            transition: all 0.2s;
-        }
-        .event-indicator:hover { background: #484f58; }
-        .event-indicator.visible { display: inline-block; }
-        .event-indicator.has-new { font-weight: bold; background: #f85149; color: white; }
-
-        /* Check items */
-        .check-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #21262d;
-        }
-        .check-item:last-child { border-bottom: none; }
-        .check-name { display: flex; align-items: center; gap: 10px; }
-        .check-indicator { width: 8px; height: 8px; border-radius: 50%; }
-        .check-indicator.healthy { background: #3fb950; }
-        .check-indicator.unhealthy { background: #f85149; }
-        .check-indicator.unknown { background: #6e7681; }
-        .check-details { text-align: right; font-size: 0.85em; color: #8b949e; }
-        .response-time { color: #3fb950; font-weight: bold; }
-        .response-time.slow { color: #d29922; }
-        .response-time.error { color: #f85149; }
 
         /* WebSocket Status */
         .ws-status {
@@ -136,7 +101,6 @@
             margin-left: 10px;
         }
         .mode-badge.prod { background: #238636; color: white; }
-        .mode-badge.test { background: #8957e5; color: white; }
         .mode-badge.paper { background: #d29922; color: white; }
 
         /* Stats */
@@ -161,60 +125,8 @@
         .message-item:nth-child(odd) { background: rgba(255,255,255,0.02); }
         .message-time { color: #6e7681; min-width: 80px; }
         .message-type { padding: 2px 6px; border-radius: 3px; font-size: 0.85em; min-width: 20px; text-align: center; }
-        .message-type.M { background: #1f6feb; color: white; }
-        .message-type.B { background: #8957e5; color: white; }
+        .message-type.O { background: #da3633; color: white; }
         .message-content { color: #8b949e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-
-        /* Popup */
-        .popup-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.7);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        .popup-overlay.visible { display: flex; }
-        .popup {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-            padding: 20px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-        .popup-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #30363d;
-        }
-        .popup-title { color: #58a6ff; font-size: 1em; }
-        .popup-close {
-            cursor: pointer;
-            color: #8b949e;
-            font-size: 1.2em;
-            padding: 5px 10px;
-        }
-        .popup-close:hover { color: #f85149; }
-
-        /* Events in popup */
-        .event-item { padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 0.85em; }
-        .event-item:last-child { margin-bottom: 0; }
-        .event-item.disconnected { background: rgba(248, 81, 73, 0.1); border-left: 3px solid #f85149; }
-        .event-item.reconnected { background: rgba(63, 185, 80, 0.1); border-left: 3px solid #3fb950; }
-        .event-source { font-weight: bold; text-transform: uppercase; font-size: 0.75em; }
-        .event-time { color: #6e7681; font-size: 0.9em; }
-        .event-duration { color: #d29922; font-weight: bold; }
-        .event-type-label { margin-left: 8px; }
-        .event-type-label.disconnected { color: #f85149; }
-        .event-type-label.reconnected { color: #3fb950; }
-        .no-events { color: #6e7681; font-style: italic; text-align: center; padding: 20px; }
 
         /* Control Panel */
         .btn {
@@ -233,25 +145,11 @@
         .btn-danger { background: #da3633; color: white; }
         .btn-danger:hover { background: #f85149; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-group { display: flex; gap: 10px; margin-bottom: 15px; }
-        .mode-btn { flex: 1; padding: 15px; }
-        .mode-btn.active { box-shadow: 0 0 0 2px #58a6ff; }
-
-        /* File selector */
-        .file-list { max-height: 200px; overflow-y: auto; border: 1px solid #30363d; border-radius: 6px; }
-        .file-item {
-            padding: 10px 15px;
-            cursor: pointer;
-            border-bottom: 1px solid #21262d;
-        }
-        .file-item:last-child { border-bottom: none; }
-        .file-item:hover { background: #21262d; }
-        .file-item.selected { background: rgba(88, 166, 255, 0.1); border-left: 3px solid #58a6ff; }
 
         /* Config form */
         .config-field { margin-bottom: 15px; }
         .config-field label { display: block; color: #8b949e; margin-bottom: 5px; font-size: 0.9em; }
-        .config-field input {
+        .config-field input, .config-field select {
             width: 100%;
             padding: 10px;
             border: 1px solid #30363d;
@@ -261,6 +159,8 @@
             font-family: inherit;
         }
         .config-field input:focus { outline: none; border-color: #58a6ff; }
+
+        .no-events { color: #6e7681; font-style: italic; text-align: center; padding: 20px; }
 
         /* Footer */
         .footer {
@@ -280,7 +180,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>MATRIZ TWIN MONITOR</h1>
+        <h1>MATRIZ ORDERS <span id="app-mode-badge" class="mode-badge paper">PAPER</span></h1>
         <div class="connection-status">
             <span id="ui-ws-status">Conectando...</span>
             <div id="ui-ws-dot" class="status-dot disconnected"></div>
@@ -288,116 +188,29 @@
     </div>
 
     <div class="tabs">
-        <div class="tab active" data-tab="monitor">Monitoreo</div>
-        <div class="tab" data-tab="orders">Ordenes</div>
-        <div class="tab" data-tab="control">Control</div>
+        <div class="tab active" data-tab="orders">Ordenes</div>
         <div class="tab" data-tab="config">Configuracion</div>
     </div>
 
-    <!-- Tab: Monitoreo -->
-    <div id="tab-monitor" class="tab-content active">
-        <div class="grid">
-            <div class="card">
-                <div class="card-title">
-                    <span class="card-title-content">Estado de Red</span>
-                    <span id="network-events-btn" class="event-indicator" onclick="showEventsPopup('network')">+</span>
-                </div>
-                <div id="network-checks">
-                    <div class="check-item">
-                        <span class="check-name">
-                            <span class="check-indicator unknown"></span>
-                            Cargando...
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-title">
-                    <span class="card-title-content">Price Listener <span id="mode-badge" class="mode-badge prod">PROD</span></span>
-                    <span id="ws-events-btn" class="event-indicator" onclick="showEventsPopup('websocket')">+</span>
-                </div>
-                <div id="price-status" class="ws-status initialized">INICIALIZANDO</div>
-                <div id="price-stats">
-                    <div class="stat-row">
-                        <span class="stat-label">Mensajes recibidos</span>
-                        <span class="stat-value" id="price-msg-count">0</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Mensajes ignorados</span>
-                        <span class="stat-value" id="price-ignored-count">0</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Ultimo mensaje</span>
-                        <span class="stat-value" id="price-last-msg-time">-</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Uptime</span>
-                        <span class="stat-value" id="price-uptime">-</span>
-                    </div>
-                    <div class="stat-row" id="replay-file-row" style="display:none;">
-                        <span class="stat-label">Archivo</span>
-                        <span class="stat-value" id="replay-file">-</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-title">
-                    <span class="card-title-content">Order Listener</span>
-                </div>
-                <div id="order-status" class="ws-status initialized">INICIALIZANDO</div>
-                <div id="order-stats">
-                    <div class="stat-row">
-                        <span class="stat-label">Mensajes recibidos</span>
-                        <span class="stat-value" id="order-msg-count">0</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Ultimo mensaje</span>
-                        <span class="stat-value" id="order-last-msg-time">-</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Uptime</span>
-                        <span class="stat-value" id="order-uptime">-</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="grid">
-            <div class="card">
-                <div class="card-title" style="cursor: pointer;" onclick="toggleMessages()">
-                    <span class="card-title-content">Mensajes Recientes Precio</span>
-                    <span id="messages-toggle" style="font-size: 0.8em; transition: transform 0.2s;">&#9660;</span>
-                </div>
-                <div id="messages-wrapper" style="display: none;">
-                    <div id="messages" class="messages-container">
-                        <div class="message-item">
-                            <span class="message-time">--:--:--</span>
-                            <span class="message-type">-</span>
-                            <span class="message-content">Esperando mensajes...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-title">
-                    <span class="card-title-content">Mensajes de Estado de Ordenes</span>
-                </div>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <input type="text" id="order-search-id" placeholder="ID de orden" style="flex: 1; padding: 10px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-family: inherit;">
-                    <button class="btn btn-primary" onclick="searchOrderMessages()">Listar</button>
-                </div>
-                <div id="order-messages" class="messages-container" style="max-height: 200px;">
-                    <div class="no-events">Ingrese un ID de orden y presione Listar</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Tab: Ordenes -->
-    <div id="tab-orders" class="tab-content">
+    <div id="tab-orders" class="tab-content active">
+        <!-- Order Listener Status Banner -->
+        <div style="margin-bottom: 20px;">
+            <div class="card" style="padding: 10px 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span style="color: #8b949e; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px;">Order Listener</span>
+                        <span id="order-status" class="ws-status initialized" style="font-size: 0.9em; padding: 5px 15px; margin: 0;">INICIALIZANDO</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px; font-size: 0.85em; color: #8b949e;">
+                        <span>Mensajes: <strong id="order-msg-count" style="color: #c9d1d9;">0</strong></span>
+                        <span>Ultimo: <strong id="order-last-msg-time" style="color: #c9d1d9;">-</strong></span>
+                        <span>Uptime: <strong id="order-uptime" style="color: #c9d1d9;">-</strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="grid" style="grid-template-columns: 1fr;">
             <!-- Formulario para nueva orden -->
             <div class="card">
@@ -405,27 +218,27 @@
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 15px;">
                     <div class="config-field">
                         <label>Ticker</label>
-                        <select id="order-ticker" style="width: 100%; padding: 10px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-family: inherit;">
+                        <select id="order-ticker">
                             <option value="AL30">AL30</option>
                         </select>
                     </div>
                     <div class="config-field">
                         <label>Plazo</label>
-                        <select id="order-term" style="width: 100%; padding: 10px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-family: inherit;">
+                        <select id="order-term">
                             <option value="CI">CI</option>
                             <option value="24hs">24hs</option>
                         </select>
                     </div>
                     <div class="config-field">
                         <label>Tipo</label>
-                        <select id="order-type" onchange="togglePriceFields()" style="width: 100%; padding: 10px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-family: inherit;">
+                        <select id="order-type" onchange="togglePriceFields()">
                             <option value="1">MARKET</option>
                             <option value="2">LIMIT</option>
                         </select>
                     </div>
                     <div class="config-field">
                         <label>Side</label>
-                        <select id="order-side" style="width: 100%; padding: 10px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-family: inherit;">
+                        <select id="order-side">
                             <option value="1">COMPRA</option>
                             <option value="2">VENTA</option>
                         </select>
@@ -434,11 +247,11 @@
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
                     <div class="config-field">
                         <label>Cantidad</label>
-                        <input type="number" id="order-quantity" min="1" value="1" style="width: 100%; padding: 10px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-family: inherit;">
+                        <input type="number" id="order-quantity" min="1" value="1">
                     </div>
                     <div class="config-field" id="price-source-field" style="display: none;">
                         <label>Precio del Book</label>
-                        <select id="order-price-source" onchange="toggleManualPrice()" style="width: 100%; padding: 10px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-family: inherit;">
+                        <select id="order-price-source" onchange="toggleManualPrice()">
                             <option value="manual">Manual</option>
                             <option value="bid1">Bid 1</option>
                             <option value="bid2">Bid 2</option>
@@ -449,8 +262,8 @@
                         </select>
                     </div>
                     <div class="config-field" id="price-field" style="display: none;">
-                        <label>Precio Límite</label>
-                        <input type="number" id="order-price" min="0" step="0.01" style="width: 100%; padding: 10px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-family: inherit;">
+                        <label>Precio Limite</label>
+                        <input type="number" id="order-price" min="0" step="0.01">
                     </div>
                 </div>
                 <div style="margin-top: 15px;">
@@ -459,9 +272,21 @@
                 </div>
             </div>
 
-            <!-- Filtros de órdenes -->
+            <!-- Busqueda de mensajes de orden -->
             <div class="card">
-                <div class="card-title">Filtros de Órdenes</div>
+                <div class="card-title">Mensajes de Estado de Ordenes</div>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="order-search-id" placeholder="ID de orden" style="flex: 1; padding: 10px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-family: inherit;">
+                    <button class="btn btn-primary" onclick="searchOrderMessages()">Listar</button>
+                </div>
+                <div id="order-messages" class="messages-container" style="max-height: 200px;">
+                    <div class="no-events">Ingrese un ID de orden y presione Listar</div>
+                </div>
+            </div>
+
+            <!-- Filtros de ordenes -->
+            <div class="card">
+                <div class="card-title">Filtros de Ordenes</div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                         <input type="checkbox" id="filter-filled" checked onchange="refreshOrders()">
@@ -477,11 +302,11 @@
                     </label>
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                         <input type="checkbox" id="filter-canceled-partial" checked onchange="refreshOrders()">
-                        <span>Canceled (con ejecución)</span>
+                        <span>Canceled (con ejecucion)</span>
                     </label>
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                         <input type="checkbox" id="filter-canceled-empty" onchange="refreshOrders()">
-                        <span>Canceled (sin ejecución)</span>
+                        <span>Canceled (sin ejecucion)</span>
                     </label>
                 </div>
                 <div style="margin-top: 15px; text-align: right;">
@@ -489,60 +314,14 @@
                 </div>
             </div>
 
-            <!-- Lista de órdenes -->
+            <!-- Lista de ordenes -->
             <div class="card">
                 <div class="card-title">
-                    <span>Órdenes del Día</span>
+                    <span>Ordenes del Dia</span>
                     <span id="orders-count" style="margin-left: 10px; font-weight: normal;">(0)</span>
                 </div>
                 <div id="orders-list" style="max-height: 500px; overflow-y: auto;">
-                    <div class="no-events">Cargando órdenes...</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tab: Control -->
-    <div id="tab-control" class="tab-content">
-        <div class="grid">
-            <div class="card">
-                <div class="card-title">Modo de Operacion</div>
-                <p style="color: #8b949e; margin-bottom: 15px; font-size: 0.9em;">
-                    <strong>PROD:</strong> Listener a prod, Service a broker<br>
-                    <strong>TEST:</strong> Listener replay, Service paper<br>
-                    <strong>PAPER:</strong> Listener a prod, Service paper
-                </p>
-                <div class="btn-group">
-                    <button id="btn-mode-prod" class="btn btn-primary mode-btn active" onclick="setMode('prod')">PROD</button>
-                    <button id="btn-mode-test" class="btn btn-secondary mode-btn" onclick="setMode('test')">TEST</button>
-                    <button id="btn-mode-paper" class="btn btn-secondary mode-btn" onclick="setMode('paper')">PAPER</button>
-                </div>
-                <div style="text-align: center; color: #8b949e; font-size: 0.85em;">
-                    Modo actual: <strong id="current-mode-text">PROD</strong>
-                </div>
-            </div>
-
-            <div class="card" id="replay-controls" style="opacity: 0.5;">
-                <div class="card-title">Control de Replay</div>
-                <p style="color: #8b949e; margin-bottom: 10px; font-size: 0.9em;">
-                    Selecciona uno o mas archivos (se procesaran en orden cronologico)
-                </p>
-                <div id="file-list" class="file-list" style="margin-bottom: 10px;">
-                    <div class="no-events">Cargando archivos...</div>
-                </div>
-                <div style="color: #6e7681; font-size: 0.8em; margin-bottom: 10px;">
-                    Seleccionados: <span id="selected-count">0</span> archivo(s)
-                </div>
-                <div class="btn-group">
-                    <button id="btn-start-replay" class="btn btn-primary" onclick="startReplay()" disabled>
-                        Iniciar Replay
-                    </button>
-                    <button id="btn-stop-replay" class="btn btn-danger" onclick="stopReplay()" disabled>
-                        Detener
-                    </button>
-                </div>
-                <div style="text-align: center; color: #8b949e; font-size: 0.85em; margin-top: 10px;">
-                    Estado: <strong id="replay-status-text">-</strong>
+                    <div class="no-events">Cargando ordenes...</div>
                 </div>
             </div>
         </div>
@@ -551,42 +330,6 @@
     <!-- Tab: Configuracion -->
     <div id="tab-config" class="tab-content">
         <div class="card" style="margin-bottom: 20px;">
-            <div class="card-title">Parametros de Monitoreo</div>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
-                <div class="config-field">
-                    <label>Health Check (seg)</label>
-                    <input type="number" id="config-check-interval" min="1" max="60" value="5">
-                </div>
-                <div class="config-field">
-                    <label>Ping Interval (seg)</label>
-                    <input type="number" id="config-ping-interval" min="5" max="60" value="10">
-                </div>
-                <div class="config-field">
-                    <label>Ping Timeout (seg)</label>
-                    <input type="number" id="config-ping-timeout" min="3" max="30" value="8">
-                </div>
-                <div class="config-field">
-                    <label>Tickers (coma sep.)</label>
-                    <input type="text" id="config-tickers" value="AL30">
-                </div>
-                <div class="config-field">
-                    <label>Terminos (coma sep.)</label>
-                    <input type="text" id="config-terms" value="CI, 24hs">
-                </div>
-                <div class="config-field" style="display: flex; align-items: flex-end;">
-                    <div style="display: flex; align-items: center; gap: 10px; padding-bottom: 10px;">
-                        <input type="checkbox" id="config-logging-enabled" checked style="width: auto;">
-                        <label for="config-logging-enabled" style="margin: 0;">Logging habilitado</label>
-                    </div>
-                </div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 15px; margin-top: 15px;">
-                <button class="btn btn-primary" onclick="reloadConfig()">Reload Configuration</button>
-                <span id="config-status" style="color: #8b949e; font-size: 0.85em;"></span>
-            </div>
-        </div>
-
-        <div class="card">
             <div class="card-title">Informacion del Sistema</div>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
                 <div class="stat-row" style="border: none;">
@@ -623,32 +366,15 @@
         </div>
     </div>
 
-    <!-- Events Popup -->
-    <div id="events-popup" class="popup-overlay" onclick="closeEventsPopup(event)">
-        <div class="popup" onclick="event.stopPropagation()">
-            <div class="popup-header">
-                <span class="popup-title" id="popup-title">Eventos</span>
-                <span class="popup-close" onclick="closeEventsPopup()">&times;</span>
-            </div>
-            <div id="popup-content">
-                <div class="no-events">Sin eventos</div>
-            </div>
-        </div>
-    </div>
-
     <div class="footer">
-        <span>Matriz Twin Monitor v1.0</span>
+        <span>Matriz Orders v2.0</span>
         <span id="last-update">Ultima actualizacion: -</span>
     </div>
 
     <script>
         let ws;
         let reconnectAttempts = 0;
-        let currentMode = 'prod';
-        let selectedFiles = [];
-        let disconnectionEvents = { matriz_host: [], websocket: [] };
-        let lastSeenEvents = { network: 0, websocket: 0 };
-        let messagesExpanded = false;
+        let appMode = 'paper';
 
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
@@ -669,7 +395,6 @@
                 document.getElementById('ui-ws-dot').classList.remove('disconnected');
                 document.getElementById('ui-ws-dot').classList.add('connected');
                 reconnectAttempts = 0;
-                loadReplayFiles();
             };
 
             ws.onclose = () => {
@@ -686,287 +411,72 @@
             document.getElementById('last-update').textContent = `Ultima actualizacion: ${new Date().toLocaleTimeString()}`;
 
             if (msg.type === 'initial_state') {
-                updateHealth(msg.data.health);
-                updatePriceProcessor(msg.data.price_processor);
                 updateOrderProcessor(msg.data.order_processor);
-                if (msg.data.disconnection_events) updateDisconnectionEvents(msg.data.disconnection_events, true);
                 if (msg.data.mode) updateMode(msg.data.mode);
-                if (msg.data.replay) updateReplayState(msg.data.replay);
             } else if (msg.type === 'state_update') {
-                if (msg.data.health) updateHealth(msg.data.health);
-                if (msg.data.websocket) updatePriceStatus(msg.data.websocket);
-                if (msg.data.message) addPriceMessage(msg.data.message);
                 if (msg.data.order_listener) updateOrderStatus(msg.data.order_listener);
                 if (msg.data.order_message) updateOrderMessage(msg.data.order_message);
-                if (msg.data.disconnection_events) updateDisconnectionEvents(msg.data.disconnection_events, false);
                 if (msg.data.mode !== undefined) updateMode(msg.data.mode);
-                if (msg.data.replay) updateReplayState(msg.data.replay);
             }
-        }
-
-        function updateDisconnectionEvents(events, isInitial) {
-            if (!events) return;
-
-            const prevNetworkCount = disconnectionEvents.matriz_host.length;
-            const prevWsCount = disconnectionEvents.websocket.length;
-
-            disconnectionEvents = events;
-
-            // Network events button
-            const networkBtn = document.getElementById('network-events-btn');
-            if (events.matriz_host && events.matriz_host.length > 0) {
-                networkBtn.classList.add('visible');
-                if (!isInitial && events.matriz_host.length > prevNetworkCount) {
-                    networkBtn.classList.add('has-new');
-                }
-            } else {
-                networkBtn.classList.remove('visible');
-            }
-
-            // WebSocket events button
-            const wsBtn = document.getElementById('ws-events-btn');
-            if (events.websocket && events.websocket.length > 0) {
-                wsBtn.classList.add('visible');
-                if (!isInitial && events.websocket.length > prevWsCount) {
-                    wsBtn.classList.add('has-new');
-                }
-            } else {
-                wsBtn.classList.remove('visible');
-            }
-        }
-
-        function showEventsPopup(type) {
-            const popup = document.getElementById('events-popup');
-            const title = document.getElementById('popup-title');
-            const content = document.getElementById('popup-content');
-
-            // Mark as seen
-            if (type === 'network') {
-                document.getElementById('network-events-btn').classList.remove('has-new');
-                title.textContent = 'Eventos de Red (Matriz Host)';
-                const events = disconnectionEvents.matriz_host || [];
-                content.innerHTML = events.length > 0
-                    ? events.map(e => formatEvent(e)).join('')
-                    : '<div class="no-events">Sin eventos de desconexion</div>';
-            } else {
-                document.getElementById('ws-events-btn').classList.remove('has-new');
-                title.textContent = 'Eventos de WebSocket';
-                const events = disconnectionEvents.websocket || [];
-                content.innerHTML = events.length > 0
-                    ? events.map(e => formatEvent(e)).join('')
-                    : '<div class="no-events">Sin eventos de desconexion</div>';
-            }
-
-            popup.classList.add('visible');
-        }
-
-        function closeEventsPopup(e) {
-            if (!e || e.target.classList.contains('popup-overlay')) {
-                document.getElementById('events-popup').classList.remove('visible');
-            }
-        }
-
-        function formatEvent(event) {
-            const time = event.timestamp ? new Date(event.timestamp).toLocaleTimeString() : '--:--:--';
-            const date = event.timestamp ? new Date(event.timestamp).toLocaleDateString() : '';
-            const typeLabel = event.event_type === 'disconnected' ? 'DESCONECTADO' : 'RECONECTADO';
-            let durationHtml = '';
-            if (event.event_type === 'reconnected' && event.disconnection_duration_seconds !== null) {
-                durationHtml = `<span class="event-duration"> (${event.disconnection_duration_seconds.toFixed(1)}s offline)</span>`;
-            }
-            return `<div class="event-item ${event.event_type}"><div><span class="event-type-label ${event.event_type}">${typeLabel}</span>${durationHtml}</div><div class="event-time">${date} ${time}</div></div>`;
         }
 
         function updateMode(mode) {
-            currentMode = mode;
-            const badge = document.getElementById('mode-badge');
+            appMode = mode;
+
+            // Header badge
+            const badge = document.getElementById('app-mode-badge');
             badge.textContent = mode.toUpperCase();
             badge.className = 'mode-badge ' + mode;
 
-            document.getElementById('current-mode-text').textContent = mode.toUpperCase();
-
-            // Actualizar indicador de modo en solapa de órdenes
+            // Order form badge
             const orderModeIndicator = document.getElementById('order-mode-indicator');
             if (orderModeIndicator) {
                 orderModeIndicator.textContent = mode.toUpperCase();
                 orderModeIndicator.className = 'mode-badge ' + mode;
             }
-
-            // Actualizar estilos de botones: verde para activo, gris para inactivos
-            const btnProd = document.getElementById('btn-mode-prod');
-            const btnTest = document.getElementById('btn-mode-test');
-            const btnPaper = document.getElementById('btn-mode-paper');
-
-            btnProd.className = mode === 'prod' ? 'btn btn-primary mode-btn' : 'btn btn-secondary mode-btn';
-            btnTest.className = mode === 'test' ? 'btn btn-primary mode-btn' : 'btn btn-secondary mode-btn';
-            btnPaper.className = mode === 'paper' ? 'btn btn-primary mode-btn' : 'btn btn-secondary mode-btn';
-
-            // Replay controls solo activos en modo test
-            document.getElementById('replay-controls').style.opacity = mode === 'test' ? '1' : '0.5';
-            document.getElementById('replay-file-row').style.display = mode === 'test' ? 'flex' : 'none';
-
-            if (mode === 'test') {
-                document.getElementById('btn-start-replay').disabled = selectedFiles.length === 0;
-            } else {
-                document.getElementById('btn-start-replay').disabled = true;
-                document.getElementById('btn-stop-replay').disabled = true;
-            }
         }
 
-        function updateReplayState(replay) {
-            if (replay.status) {
-                document.getElementById('replay-status-text').textContent = replay.status;
-                document.getElementById('btn-stop-replay').disabled = replay.status !== 'Running';
-                if (replay.status === 'Waiting' && currentMode === 'test') {
-                    document.getElementById('btn-start-replay').disabled = selectedFiles.length === 0;
+        function updateOrderStatus(orderData) {
+            const statusEl = document.getElementById('order-status');
+            const status = orderData.status || 'Disconnected';
+            statusEl.textContent = status.toUpperCase();
+            statusEl.className = 'ws-status ' + status.toLowerCase();
+            if (orderData.message_count !== undefined) document.getElementById('order-msg-count').textContent = orderData.message_count;
+        }
+
+        function updateOrderProcessor(proc) {
+            if (!proc) return;
+            document.getElementById('order-msg-count').textContent = proc.message_count || 0;
+            if (proc.last_message_time) document.getElementById('order-last-msg-time').textContent = new Date(proc.last_message_time).toLocaleTimeString();
+            if (proc.uptime_seconds) {
+                const mins = Math.floor(proc.uptime_seconds / 60);
+                const secs = Math.floor(proc.uptime_seconds % 60);
+                document.getElementById('order-uptime').textContent = `${mins}m ${secs}s`;
+            }
+            if (proc.status) updateOrderStatus({status: proc.status});
+        }
+
+        function updateOrderMessage(msg) {
+            if (msg.count !== undefined) document.getElementById('order-msg-count').textContent = msg.count;
+            if (msg.timestamp) document.getElementById('order-last-msg-time').textContent = new Date(msg.timestamp).toLocaleTimeString();
+        }
+
+        // Uptime counter
+        setInterval(() => {
+            const orderUptimeEl = document.getElementById('order-uptime');
+            const orderText = orderUptimeEl.textContent;
+            if (orderText && orderText !== '-') {
+                const match = orderText.match(/(\d+)m (\d+)s/);
+                if (match) {
+                    let mins = parseInt(match[1]);
+                    let secs = parseInt(match[2]) + 1;
+                    if (secs >= 60) { secs = 0; mins++; }
+                    orderUptimeEl.textContent = `${mins}m ${secs}s`;
                 }
             }
-            if (replay.current_file) {
-                document.getElementById('replay-file').textContent = replay.current_file;
-            }
-        }
+        }, 1000);
 
-        function updateSelectedCount() {
-            document.getElementById('selected-count').textContent = selectedFiles.length;
-            if (currentMode === 'test') {
-                document.getElementById('btn-start-replay').disabled = selectedFiles.length === 0;
-            }
-        }
-
-        async function loadReplayFiles() {
-            try {
-                const resp = await fetch('/api/replay/files');
-                const data = await resp.json();
-                const container = document.getElementById('file-list');
-                container.innerHTML = (data.files && data.files.length > 0)
-                    ? data.files.map(f => `<div class="file-item" data-file="${f}" onclick="toggleFileSelection('${f}')">${f}</div>`).join('')
-                    : '<div class="no-events">No hay archivos disponibles</div>';
-            } catch (e) { console.error('Error loading files:', e); }
-        }
-
-        function toggleFileSelection(filename) {
-            const idx = selectedFiles.indexOf(filename);
-            if (idx >= 0) {
-                selectedFiles.splice(idx, 1);
-            } else {
-                selectedFiles.push(filename);
-            }
-            // Actualizar UI
-            document.querySelectorAll('.file-item').forEach(el => {
-                el.classList.toggle('selected', selectedFiles.includes(el.dataset.file));
-            });
-            updateSelectedCount();
-        }
-
-        async function setMode(mode) {
-            // Deshabilitar botones durante el cambio
-            document.getElementById('btn-mode-prod').disabled = true;
-            document.getElementById('btn-mode-test').disabled = true;
-            document.getElementById('btn-mode-paper').disabled = true;
-
-            try {
-                const resp = await fetch('/api/mode', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({mode})
-                });
-                const data = await resp.json();
-
-                if (data.error) {
-                    // Mostrar error al usuario
-                    alert(`Error al cambiar modo:\n\n${data.error}\n\nRevise los logs para más información.`);
-                    // El modo no cambió, mantener el modo actual
-                    if (data.mode) updateMode(data.mode);
-                } else if (data.mode) {
-                    updateMode(data.mode);
-                }
-            } catch (e) {
-                console.error('Error setting mode:', e);
-                alert(`Error de conexión al cambiar modo:\n\n${e.message}\n\nRevise la consola para más detalles.`);
-            } finally {
-                // Rehabilitar botones
-                document.getElementById('btn-mode-prod').disabled = false;
-                document.getElementById('btn-mode-test').disabled = false;
-                document.getElementById('btn-mode-paper').disabled = false;
-            }
-        }
-
-        async function startReplay() {
-            if (selectedFiles.length === 0) return;
-            try {
-                document.getElementById('btn-start-replay').disabled = true;
-                // Ordenar archivos cronologicamente por nombre
-                const sortedFiles = [...selectedFiles].sort();
-                const resp = await fetch('/api/replay/start', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({files: sortedFiles})
-                });
-                const data = await resp.json();
-                if (!data.error) document.getElementById('btn-stop-replay').disabled = false;
-            } catch (e) {
-                console.error('Error starting replay:', e);
-                document.getElementById('btn-start-replay').disabled = false;
-            }
-        }
-
-        async function stopReplay() {
-            try {
-                await fetch('/api/replay/stop', {method: 'POST'});
-                document.getElementById('btn-stop-replay').disabled = true;
-                document.getElementById('btn-start-replay').disabled = selectedFiles.length === 0;
-            } catch (e) { console.error('Error stopping replay:', e); }
-        }
-
-        function toggleMessages() {
-            const wrapper = document.getElementById('messages-wrapper');
-            const toggle = document.getElementById('messages-toggle');
-            const container = document.getElementById('messages');
-            if (wrapper.style.display === 'none') {
-                // Expanding
-                wrapper.style.display = 'block';
-                toggle.style.transform = 'rotate(180deg)';
-                messagesExpanded = true;
-                // Reset to waiting state
-                container.innerHTML = '<div class="message-item"><span class="message-time">--:--:--</span><span class="message-type">-</span><span class="message-content">Esperando mensajes...</span></div>';
-            } else {
-                // Collapsing - clear messages
-                wrapper.style.display = 'none';
-                toggle.style.transform = 'rotate(0deg)';
-                messagesExpanded = false;
-                container.innerHTML = '';
-            }
-        }
-
-        async function reloadConfig() {
-            const checkInterval = document.getElementById('config-check-interval').value;
-            const pingInterval = document.getElementById('config-ping-interval').value;
-            const pingTimeout = document.getElementById('config-ping-timeout').value;
-            const loggingEnabled = document.getElementById('config-logging-enabled').checked;
-            const tickers = document.getElementById('config-tickers').value;
-            const terms = document.getElementById('config-terms').value;
-
-            try {
-                const resp = await fetch('/api/config/reload', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        check_interval: parseInt(checkInterval),
-                        ping_interval: parseInt(pingInterval),
-                        ping_timeout: parseInt(pingTimeout),
-                        logging_enabled: loggingEnabled,
-                        tickers: tickers.split(',').map(t => t.trim()),
-                        terms: terms.split(',').map(t => t.trim())
-                    })
-                });
-                const data = await resp.json();
-                document.getElementById('config-status').textContent = data.message || 'Configuracion aplicada';
-                document.getElementById('config-status').style.color = data.error ? '#f85149' : '#3fb950';
-            } catch (e) {
-                document.getElementById('config-status').textContent = 'Error al aplicar configuracion';
-                document.getElementById('config-status').style.color = '#f85149';
-            }
-        }
+        // ===== ORDER MESSAGES SEARCH =====
 
         async function searchOrderMessages() {
             const orderId = document.getElementById('order-search-id').value.trim();
@@ -999,144 +509,6 @@
             }
         }
 
-        function updateHealth(health) {
-            if (!health) return;
-
-            let html = '';
-
-            // Network checks
-            if (health.network) {
-                for (const [name, check] of Object.entries(health.network)) {
-                    const statusClass = check.healthy ? 'healthy' : 'unhealthy';
-                    const timeClass = check.response_time_ms > 500 ? 'slow' : (check.error ? 'error' : '');
-                    const timeText = check.error ? check.error : `${check.response_time_ms}ms`;
-                    html += `<div class="check-item"><span class="check-name"><span class="check-indicator ${statusClass}"></span>${name}</span><span class="check-details"><span class="response-time ${timeClass}">${timeText}</span></span></div>`;
-                }
-            }
-
-            // Matriz check (unified in network)
-            if (health.matriz) {
-                const m = health.matriz;
-                const statusClass = m.healthy ? 'healthy' : 'unhealthy';
-                const timeClass = m.response_time_ms > 500 ? 'slow' : (m.error ? 'error' : '');
-                const timeText = m.error ? m.error : `${m.response_time_ms}ms`;
-                html += `<div class="check-item"><span class="check-name"><span class="check-indicator ${statusClass}"></span>Matriz</span><span class="check-details"><span class="response-time ${timeClass}">${timeText}</span></span></div>`;
-                document.getElementById('config-matriz-host').textContent = m.url || '-';
-            }
-
-            document.getElementById('network-checks').innerHTML = html;
-
-            if (health.websocket) updatePriceStatus(health.websocket);
-            if (health.config) {
-                document.getElementById('config-check-interval').value = health.config.check_interval;
-            }
-        }
-
-        function updatePriceStatus(wsData) {
-            const statusEl = document.getElementById('price-status');
-            const status = wsData.status || 'Disconnected';
-            statusEl.textContent = status.toUpperCase();
-            statusEl.className = 'ws-status ' + status.toLowerCase();
-            if (wsData.message_count !== undefined) document.getElementById('price-msg-count').textContent = wsData.message_count;
-        }
-
-        function updatePriceProcessor(proc) {
-            if (!proc) return;
-            document.getElementById('price-msg-count').textContent = proc.message_count || 0;
-            document.getElementById('price-ignored-count').textContent = proc.ignored_message_count || 0;
-            if (proc.last_message_time) document.getElementById('price-last-msg-time').textContent = new Date(proc.last_message_time).toLocaleTimeString();
-            if (proc.uptime_seconds) {
-                const mins = Math.floor(proc.uptime_seconds / 60);
-                const secs = Math.floor(proc.uptime_seconds % 60);
-                document.getElementById('price-uptime').textContent = `${mins}m ${secs}s`;
-            }
-            if (proc.logging_enabled !== undefined) {
-                document.getElementById('config-logging-enabled').checked = proc.logging_enabled;
-            }
-            if (proc.status) updatePriceStatus({status: proc.status});
-            // Only load recent messages if expanded
-            if (messagesExpanded && proc.recent_messages && proc.recent_messages.length > 0) {
-                document.getElementById('messages').innerHTML = '';
-                proc.recent_messages.forEach(msg => addPriceMessage(msg, false));
-            }
-        }
-
-        function updateOrderStatus(orderData) {
-            const statusEl = document.getElementById('order-status');
-            const status = orderData.status || 'Disconnected';
-            statusEl.textContent = status.toUpperCase();
-            statusEl.className = 'ws-status ' + status.toLowerCase();
-            if (orderData.message_count !== undefined) document.getElementById('order-msg-count').textContent = orderData.message_count;
-        }
-
-        function updateOrderProcessor(proc) {
-            if (!proc) return;
-            document.getElementById('order-msg-count').textContent = proc.message_count || 0;
-            if (proc.last_message_time) document.getElementById('order-last-msg-time').textContent = new Date(proc.last_message_time).toLocaleTimeString();
-            if (proc.uptime_seconds) {
-                const mins = Math.floor(proc.uptime_seconds / 60);
-                const secs = Math.floor(proc.uptime_seconds % 60);
-                document.getElementById('order-uptime').textContent = `${mins}m ${secs}s`;
-            }
-            if (proc.status) updateOrderStatus({status: proc.status});
-        }
-
-        function updateOrderMessage(msg) {
-            if (msg.count !== undefined) document.getElementById('order-msg-count').textContent = msg.count;
-            if (msg.timestamp) document.getElementById('order-last-msg-time').textContent = new Date(msg.timestamp).toLocaleTimeString();
-        }
-
-        function addPriceMessage(msg, scroll = true) {
-            // Update counter always
-            if (msg.count !== undefined) document.getElementById('price-msg-count').textContent = msg.count;
-
-            // Only add to list if expanded
-            if (!messagesExpanded) return;
-
-            const container = document.getElementById('messages');
-            const firstChild = container.children[0];
-            const messageContent = firstChild ? firstChild.querySelector('.message-content') : null;
-            if (container.children.length === 1 && messageContent && messageContent.textContent === 'Esperando mensajes...') {
-                container.innerHTML = '';
-            }
-            const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '--:--:--';
-            const type = msg.type || '-';
-            const content = msg.content || '';
-            const div = document.createElement('div');
-            div.className = 'message-item';
-            div.innerHTML = `<span class="message-time">${time}</span><span class="message-type ${type}">${type}</span><span class="message-content" title="${content}">${content}</span>`;
-            container.appendChild(div);
-            while (container.children.length > 100) container.removeChild(container.firstChild);
-            if (scroll) container.scrollTop = container.scrollHeight;
-        }
-
-        setInterval(() => {
-            // Actualizar uptime del price processor
-            const priceUptimeEl = document.getElementById('price-uptime');
-            const priceText = priceUptimeEl.textContent;
-            if (priceText && priceText !== '-') {
-                const match = priceText.match(/(\d+)m (\d+)s/);
-                if (match) {
-                    let mins = parseInt(match[1]);
-                    let secs = parseInt(match[2]) + 1;
-                    if (secs >= 60) { secs = 0; mins++; }
-                    priceUptimeEl.textContent = `${mins}m ${secs}s`;
-                }
-            }
-            // Actualizar uptime del order processor
-            const orderUptimeEl = document.getElementById('order-uptime');
-            const orderText = orderUptimeEl.textContent;
-            if (orderText && orderText !== '-') {
-                const match = orderText.match(/(\d+)m (\d+)s/);
-                if (match) {
-                    let mins = parseInt(match[1]);
-                    let secs = parseInt(match[2]) + 1;
-                    if (secs >= 60) { secs = 0; mins++; }
-                    orderUptimeEl.textContent = `${mins}m ${secs}s`;
-                }
-            }
-        }, 1000);
-
         // ===== ORDERS TAB FUNCTIONS =====
 
         function togglePriceFields() {
@@ -1144,10 +516,10 @@
             const priceSourceField = document.getElementById('price-source-field');
             const priceField = document.getElementById('price-field');
 
-            if (orderType === '1') { // Market order
+            if (orderType === '1') {
                 priceSourceField.style.display = 'none';
                 priceField.style.display = 'none';
-            } else { // Limit order
+            } else {
                 priceSourceField.style.display = 'block';
                 toggleManualPrice();
             }
@@ -1156,12 +528,7 @@
         function toggleManualPrice() {
             const priceSource = document.getElementById('order-price-source').value;
             const priceField = document.getElementById('price-field');
-
-            if (priceSource === 'manual') {
-                priceField.style.display = 'block';
-            } else {
-                priceField.style.display = 'none';
-            }
+            priceField.style.display = priceSource === 'manual' ? 'block' : 'none';
         }
 
         async function placeOrder() {
@@ -1172,30 +539,20 @@
             const quantity = parseInt(document.getElementById('order-quantity').value);
             const status = document.getElementById('order-form-status');
 
-            // Validar cantidad
             if (!quantity || quantity <= 0) {
-                status.textContent = 'Error: Cantidad inválida';
+                status.textContent = 'Error: Cantidad invalida';
                 status.style.color = '#f85149';
                 return;
             }
 
-            // Preparar request
-            const request = {
-                ticker,
-                term,
-                side,
-                order_type: orderType,
-                quantity
-            };
+            const request = { ticker, term, side, order_type: orderType, quantity };
 
-            // Si es limit order, agregar precio
             if (orderType === '2') {
                 const priceSource = document.getElementById('order-price-source').value;
-
                 if (priceSource === 'manual') {
                     const price = parseFloat(document.getElementById('order-price').value);
                     if (!price || price <= 0) {
-                        status.textContent = 'Error: Precio inválido';
+                        status.textContent = 'Error: Precio invalido';
                         status.style.color = '#f85149';
                         return;
                     }
@@ -1206,7 +563,6 @@
                 }
             }
 
-            // Enviar orden
             status.textContent = 'Enviando orden...';
             status.style.color = '#8b949e';
 
@@ -1224,7 +580,6 @@
                 } else if (data.success) {
                     status.textContent = data.message || 'Orden colocada exitosamente';
                     status.style.color = '#3fb950';
-                    // Actualizar lista de órdenes
                     setTimeout(() => refreshOrders(), 500);
                 }
             } catch (e) {
@@ -1242,12 +597,11 @@
                 const data = await resp.json();
 
                 if (!data.orders || data.orders.length === 0) {
-                    container.innerHTML = '<div class="no-events">No hay órdenes del día</div>';
+                    container.innerHTML = '<div class="no-events">No hay ordenes del dia</div>';
                     document.getElementById('orders-count').textContent = '(0)';
                     return;
                 }
 
-                // Aplicar filtros
                 const showFilled = document.getElementById('filter-filled').checked;
                 const showPartial = document.getElementById('filter-partial').checked;
                 const showPlaced = document.getElementById('filter-placed').checked;
@@ -1267,11 +621,10 @@
                 document.getElementById('orders-count').textContent = `(${filteredOrders.length})`;
 
                 if (filteredOrders.length === 0) {
-                    container.innerHTML = '<div class="no-events">No hay órdenes que cumplan los filtros</div>';
+                    container.innerHTML = '<div class="no-events">No hay ordenes que cumplan los filtros</div>';
                     return;
                 }
 
-                // Renderizar órdenes
                 container.innerHTML = filteredOrders.map(order => renderOrder(order)).join('');
 
             } catch (e) {
@@ -1348,7 +701,6 @@
                     return;
                 }
 
-                // Actualizar UI
                 document.getElementById('session-account-id').textContent = data.account_id || '-';
                 if (data.min_caucion_days !== null) {
                     document.getElementById('session-min-caucion-days').value = data.min_caucion_days;
@@ -1363,7 +715,7 @@
             const statusEl = document.getElementById('session-config-status');
 
             if (!minCaucionDays || minCaucionDays < 1) {
-                statusEl.textContent = 'Error: Días de caución debe ser >= 1';
+                statusEl.textContent = 'Error: Dias de caucion debe ser >= 1';
                 statusEl.style.color = '#f85149';
                 return;
             }
@@ -1383,9 +735,8 @@
                     statusEl.textContent = `Error: ${data.error}`;
                     statusEl.style.color = '#f85149';
                 } else if (data.success) {
-                    statusEl.textContent = data.message || 'Configuración actualizada';
+                    statusEl.textContent = data.message || 'Configuracion actualizada';
                     statusEl.style.color = '#3fb950';
-                    // Actualizar UI con los nuevos valores
                     if (data.config) {
                         document.getElementById('session-account-id').textContent = data.config.account_id || '-';
                         if (data.config.min_caucion_days !== null) {
@@ -1399,17 +750,18 @@
             }
         }
 
-        // Load orders when opening the tab
+        // Load orders on page load and when tab is clicked
         document.querySelector('[data-tab="orders"]').addEventListener('click', () => {
             refreshOrders();
         });
 
-        // Load session config when opening the config tab
         document.querySelector('[data-tab="config"]').addEventListener('click', () => {
             loadSessionConfig();
         });
 
+        // Initial load
         connectWebSocket();
+        refreshOrders();
     </script>
 </body>
 </html>
