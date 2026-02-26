@@ -28,13 +28,10 @@ matriz_session: MatrizSession = None
 redis_market_subscriber: RedisMarketDataSubscriber = None
 redis_order_publisher: RedisOrderEventPublisher = None
 
-# Modo fijo desde env (no cambiable en runtime)
+# Modo de operacion (puede cambiarse en runtime)
 app_mode: str = os.getenv('MODE', 'paper')
 order_task: Optional[asyncio.Task] = None
 
-# Configuracion de ping
-current_ping_interval: int = 10
-current_ping_timeout: int = 8
 
 
 async def broadcast_state(state: dict):
@@ -59,6 +56,11 @@ async def on_order_status_change(status: str, message_count: int):
 async def on_order_message(message_data: dict):
     """Callback cuando llega un mensaje del OrderListener"""
     await broadcast_state({'order_message': message_data})
+
+
+async def on_redis_message_count(count: int):
+    """Callback cuando llega un mensaje de market data por Redis"""
+    await broadcast_state({'redis_message_count': count})
 
 
 async def run_order_listener():
@@ -103,9 +105,7 @@ async def run_order_listener():
                 print(f"[OrderListener] Creando MatrizOrderListener con sesion compartida...", flush=True)
                 order_listener = MatrizOrderListener(
                     order_message_processor,
-                    session=matriz_session,
-                    ping_interval=current_ping_interval,
-                    ping_timeout=current_ping_timeout
+                    session=matriz_session
                 )
 
                 # Iniciar conexion en background
@@ -449,20 +449,20 @@ async def lifespan(app: FastAPI):
     matriz_session = MatrizSession()
     print(f"[Startup] Sesion creada - session_id: {matriz_session.session_id[:20] if matriz_session.session_id else 'None'}...")
 
-    # Crear conexion Redis
-    print(f"[Startup] Conectando a Redis...")
-    redis_client = await get_redis()
-    try:
-        await redis_client.ping()
-        print(f"[Startup] Redis conectado")
-    except Exception as e:
-        print(f"[Startup] WARNING: Redis no disponible: {e}")
-
     # Crear publisher y subscriber Redis
+    # El publisher necesita conexion inmediata; el subscriber se conecta solo con reintentos
+    print(f"[Startup] Inicializando Redis...")
     redis_order_publisher = RedisOrderEventPublisher()
-    redis_order_publisher.set_redis(redis_client)
+    try:
+        redis_client = await get_redis()
+        await redis_client.ping()
+        redis_order_publisher.set_redis(redis_client)
+        print(f"[Startup] Redis conectado (publisher listo)")
+    except Exception as e:
+        print(f"[Startup] WARNING: Redis no disponible para publisher: {e}")
 
-    redis_market_subscriber = RedisMarketDataSubscriber()
+    tickers = [t.strip() for t in os.getenv('TICKERS', 'AL30').split(',')]
+    redis_market_subscriber = RedisMarketDataSubscriber(tickers=tickers, on_message_count=on_redis_message_count)
 
     # Inicializar order message processor
     order_message_processor = OrderMessageProcessor(
@@ -485,8 +485,8 @@ async def lifespan(app: FastAPI):
     redis_market_subscriber.set_order_service(order_service)
     redis_market_subscriber.set_order_message_processor(order_message_processor)
 
-    # Iniciar Redis market data subscriber
-    redis_sub_task = asyncio.create_task(redis_market_subscriber.run(redis_client))
+    # Iniciar Redis market data subscriber (se conecta solo con reintentos)
+    redis_sub_task = asyncio.create_task(redis_market_subscriber.run())
 
     # Iniciar order listener segun modo
     print(f"[Startup] Iniciando order listener en modo: {app_mode}")
@@ -514,7 +514,12 @@ async def lifespan(app: FastAPI):
     print(f"[Shutdown] Servicios detenidos")
 
 
-app = FastAPI(title="Matriz Orders", lifespan=lifespan)
+app = FastAPI(
+    title="Matriz Orders",
+    description="Servicio de gestión de órdenes para Matriz/EcoBolsar. Recibe market data via Redis y publica eventos de órdenes.",
+    version="2.0.0",
+    lifespan=lifespan
+)
 
 # Servir archivos estaticos
 static_path = Path(__file__).parent / "static"
@@ -529,6 +534,13 @@ async def index():
     return template_path.read_text()
 
 
+@app.get("/documentation", response_class=HTMLResponse)
+async def documentation():
+    """Documentacion del servicio: API REST, Redis pub/sub y WebSocket"""
+    template_path = Path(__file__).parent / "templates" / "documentation.html"
+    return template_path.read_text()
+
+
 @app.get("/api/status")
 async def get_status():
     """Obtener estado del sistema"""
@@ -536,6 +548,63 @@ async def get_status():
         'order_processor': order_message_processor.get_state() if order_message_processor else {},
         'mode': app_mode
     }
+
+
+class SetModeRequest(BaseModel):
+    mode: str  # "prod" o "paper"
+
+
+@app.post("/api/mode")
+async def set_mode(request: SetModeRequest):
+    """Cambiar modo de operacion (prod/paper). Reinicia el order listener."""
+    global app_mode, order_task, order_service, order_listener
+
+    if request.mode not in ('prod', 'paper'):
+        return {'error': 'Modo invalido. Usar "prod" o "paper"'}
+
+    if request.mode == app_mode:
+        return {'success': True, 'mode': app_mode, 'message': f'Ya esta en modo {app_mode}'}
+
+    old_mode = app_mode
+    app_mode = request.mode
+
+    # Cancelar order listener actual
+    if order_task and not order_task.done():
+        order_task.cancel()
+        try:
+            await asyncio.wait_for(asyncio.shield(order_task), timeout=3.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass
+
+    # Cerrar listener si existe
+    if order_listener:
+        try:
+            await order_listener.close()
+        except Exception:
+            pass
+        order_listener = None
+
+    # Reconfigurar order_service
+    if app_mode == "prod":
+        order_service.set_mode("prod")
+        order_service.set_on_paper_order(None)
+        order_task = asyncio.create_task(run_order_listener())
+    else:
+        order_service.set_mode("paper")
+        order_service.set_on_paper_order(on_paper_order)
+        order_task = asyncio.create_task(run_order_listener_dummy())
+
+    # Notificar UI
+    await broadcast_state({'mode': app_mode})
+
+    print(f"[Mode] Cambiado de {old_mode} a {app_mode}")
+    return {'success': True, 'mode': app_mode, 'message': f'Modo cambiado a {app_mode}'}
+
+
+@app.get("/api/mode")
+async def get_mode():
+    """Obtener modo actual"""
+    return {'mode': app_mode}
 
 
 @app.get("/api/orders")
@@ -586,7 +655,7 @@ async def get_orders():
 @app.get("/api/orders/config")
 async def get_orders_config():
     """Obtener configuracion para el formulario de ordenes"""
-    tickers = ['AL30']
+    tickers = [t.strip() for t in os.getenv('TICKERS', 'AL30').split(',')]
     terms = ['CI', '24hs']
 
     return {
@@ -829,7 +898,8 @@ async def websocket_endpoint(websocket: WebSocket):
             'type': 'initial_state',
             'data': {
                 'order_processor': order_message_processor.get_state() if order_message_processor else {},
-                'mode': app_mode
+                'mode': app_mode,
+                'redis_message_count': redis_market_subscriber.message_count if redis_market_subscriber else 0
             }
         })
 
@@ -845,5 +915,5 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv('MONITOR_PORT', '8000'))
+    port = int(os.getenv('MONITOR_PORT', '8005'))
     uvicorn.run(app, host="0.0.0.0", port=port)

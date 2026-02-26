@@ -206,7 +206,21 @@
                         <span>Mensajes: <strong id="order-msg-count" style="color: #c9d1d9;">0</strong></span>
                         <span>Ultimo: <strong id="order-last-msg-time" style="color: #c9d1d9;">-</strong></span>
                         <span>Uptime: <strong id="order-uptime" style="color: #c9d1d9;">-</strong></span>
+                        <span style="border-left: 1px solid #30363d; padding-left: 15px;">Redis: <strong id="redis-msg-count" style="color: #c9d1d9;">0</strong></span>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Data -->
+        <div style="margin-bottom: 20px;">
+            <div class="card" style="padding: 10px 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="color: #8b949e; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px;">Market Data</span>
+                    <span style="font-size: 0.75em; color: #6e7681;" id="market-updated-at">-</span>
+                </div>
+                <div id="market-data-container">
+                    <span style="color: #6e7681; font-size: 0.85em;">Esperando datos...</span>
                 </div>
             </div>
         </div>
@@ -330,6 +344,21 @@
     <!-- Tab: Configuracion -->
     <div id="tab-config" class="tab-content">
         <div class="card" style="margin-bottom: 20px;">
+            <div class="card-title">Modo de Operacion</div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span style="color: #8b949e;">Modo actual:</span>
+                <span id="config-mode-badge" class="mode-badge paper" style="font-size: 0.9em;">PAPER</span>
+                <button id="btn-switch-prod" class="btn btn-primary" onclick="switchMode('prod')" style="margin-left: 20px;">Cambiar a PROD</button>
+                <button id="btn-switch-paper" class="btn btn-secondary" onclick="switchMode('paper')" style="display: none;">Cambiar a PAPER</button>
+                <span id="mode-switch-status" style="color: #8b949e; font-size: 0.85em;"></span>
+            </div>
+            <div style="margin-top: 10px; font-size: 0.8em; color: #6e7681;">
+                <strong>prod:</strong> ordenes reales al broker &nbsp;|&nbsp;
+                <strong>paper:</strong> ordenes simuladas localmente
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 20px;">
             <div class="card-title">Informacion del Sistema</div>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
                 <div class="stat-row" style="border: none;">
@@ -338,7 +367,7 @@
                 </div>
                 <div class="stat-row" style="border: none;">
                     <span class="stat-label">Puerto del Monitor</span>
-                    <span class="stat-value">8000</span>
+                    <span class="stat-value">8005</span>
                 </div>
                 <div class="stat-row" style="border: none;">
                     <span class="stat-label">Logs Directory</span>
@@ -413,10 +442,12 @@
             if (msg.type === 'initial_state') {
                 updateOrderProcessor(msg.data.order_processor);
                 if (msg.data.mode) updateMode(msg.data.mode);
+                if (msg.data.redis_message_count !== undefined) updateRedisCount(msg.data.redis_message_count);
             } else if (msg.type === 'state_update') {
                 if (msg.data.order_listener) updateOrderStatus(msg.data.order_listener);
                 if (msg.data.order_message) updateOrderMessage(msg.data.order_message);
                 if (msg.data.mode !== undefined) updateMode(msg.data.mode);
+                if (msg.data.redis_message_count !== undefined) updateRedisCount(msg.data.redis_message_count);
             }
         }
 
@@ -433,6 +464,47 @@
             if (orderModeIndicator) {
                 orderModeIndicator.textContent = mode.toUpperCase();
                 orderModeIndicator.className = 'mode-badge ' + mode;
+            }
+
+            // Config tab badge and buttons
+            const configBadge = document.getElementById('config-mode-badge');
+            if (configBadge) {
+                configBadge.textContent = mode.toUpperCase();
+                configBadge.className = 'mode-badge ' + mode;
+            }
+            const btnProd = document.getElementById('btn-switch-prod');
+            const btnPaper = document.getElementById('btn-switch-paper');
+            if (btnProd && btnPaper) {
+                btnProd.style.display = mode === 'prod' ? 'none' : 'inline-block';
+                btnPaper.style.display = mode === 'paper' ? 'none' : 'inline-block';
+            }
+        }
+
+        async function switchMode(newMode) {
+            const statusEl = document.getElementById('mode-switch-status');
+            statusEl.textContent = 'Cambiando...';
+            statusEl.style.color = '#8b949e';
+
+            try {
+                const resp = await fetch('/api/mode', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ mode: newMode })
+                });
+                const data = await resp.json();
+
+                if (data.error) {
+                    statusEl.textContent = `Error: ${data.error}`;
+                    statusEl.style.color = '#f85149';
+                } else if (data.success) {
+                    statusEl.textContent = data.message;
+                    statusEl.style.color = '#3fb950';
+                    updateMode(data.mode);
+                    setTimeout(() => { statusEl.textContent = ''; }, 3000);
+                }
+            } catch (e) {
+                statusEl.textContent = `Error: ${e.message}`;
+                statusEl.style.color = '#f85149';
             }
         }
 
@@ -459,6 +531,10 @@
         function updateOrderMessage(msg) {
             if (msg.count !== undefined) document.getElementById('order-msg-count').textContent = msg.count;
             if (msg.timestamp) document.getElementById('order-last-msg-time').textContent = new Date(msg.timestamp).toLocaleTimeString();
+        }
+
+        function updateRedisCount(count) {
+            document.getElementById('redis-msg-count').textContent = count;
         }
 
         // Uptime counter
@@ -759,9 +835,70 @@
             loadSessionConfig();
         });
 
+        // ===== MARKET DATA =====
+
+        async function refreshMarketData() {
+            try {
+                const resp = await fetch('/api/market/book');
+                const data = await resp.json();
+                const container = document.getElementById('market-data-container');
+                const updatedEl = document.getElementById('market-updated-at');
+
+                if (!data.book || Object.keys(data.book).length === 0) {
+                    container.innerHTML = '<span style="color: #6e7681; font-size: 0.85em;">Sin datos de mercado</span>';
+                    return;
+                }
+
+                let html = '<table style="width: 100%; font-size: 0.85em; margin: 0;"><tr>' +
+                    '<th style="color:#8b949e; font-weight:normal; padding:4px 8px;">Instrumento</th>' +
+                    '<th style="color:#3fb950; font-weight:normal; padding:4px 8px; text-align:right;">Bid</th>' +
+                    '<th style="color:#3fb950; font-weight:normal; padding:4px 8px; text-align:right;">Bid Size</th>' +
+                    '<th style="color:#f85149; font-weight:normal; padding:4px 8px; text-align:right;">Ask</th>' +
+                    '<th style="color:#f85149; font-weight:normal; padding:4px 8px; text-align:right;">Ask Size</th>' +
+                    '<th style="color:#d29922; font-weight:normal; padding:4px 8px; text-align:right;">Last</th>' +
+                    '</tr>';
+
+                let latestUpdate = null;
+                for (const [instrument, md] of Object.entries(data.book)) {
+                    const name = instrument.replace('bm_MERV_', '');
+                    const bid = md.bid != null ? md.bid.toLocaleString('es-AR', {minimumFractionDigits: 2}) : '-';
+                    const ask = md.ask != null ? md.ask.toLocaleString('es-AR', {minimumFractionDigits: 2}) : '-';
+                    const last = md.last != null ? md.last.toLocaleString('es-AR', {minimumFractionDigits: 2}) : '-';
+                    const bidSize = md.bid_size != null ? md.bid_size.toLocaleString('es-AR') : '-';
+                    const askSize = md.ask_size != null ? md.ask_size.toLocaleString('es-AR') : '-';
+
+                    html += `<tr style="border-bottom: 1px solid #21262d;">
+                        <td style="padding:6px 8px; color:#c9d1d9; font-weight:bold;">${name}</td>
+                        <td style="padding:6px 8px; color:#3fb950; text-align:right;">${bid}</td>
+                        <td style="padding:6px 8px; color:#3fb950; text-align:right; opacity:0.7;">${bidSize}</td>
+                        <td style="padding:6px 8px; color:#f85149; text-align:right;">${ask}</td>
+                        <td style="padding:6px 8px; color:#f85149; text-align:right; opacity:0.7;">${askSize}</td>
+                        <td style="padding:6px 8px; color:#d29922; text-align:right;">${last}</td>
+                    </tr>`;
+
+                    if (md.updated_at && (!latestUpdate || md.updated_at > latestUpdate)) {
+                        latestUpdate = md.updated_at;
+                    }
+                }
+                html += '</table>';
+                container.innerHTML = html;
+
+                if (latestUpdate) {
+                    const d = new Date(latestUpdate);
+                    updatedEl.textContent = d.toLocaleTimeString();
+                }
+            } catch (e) {
+                // silently ignore
+            }
+        }
+
+        // Poll market data every 5 seconds
+        setInterval(refreshMarketData, 5000);
+
         // Initial load
         connectWebSocket();
         refreshOrders();
+        refreshMarketData();
     </script>
 </body>
 </html>

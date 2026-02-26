@@ -5,98 +5,31 @@ from datetime import datetime
 class MarketDataCache:
     """
     Cache de datos de mercado en tiempo real.
-    Mantiene precios de puntas (bid/ask), ultimo precio operado y niveles del libro.
+    Recibe datos pre-parseados del price listener via Redis.
+    Formato esperado: {"bid", "ask", "last", "bid_size", "ask_size", "book": {"bids": [[p,q],...], "asks": [[p,q],...]}}
     """
 
     def __init__(self):
         self.data: Dict[str, dict] = {}
 
-    def update_from_message(self, instrument: str, message_data: dict):
+    def update_from_price_listener(self, instrument: str, data: dict):
         """
-        Actualiza el cache desde un mensaje de market data (M: o B:).
+        Actualiza el cache desde un mensaje del price listener.
+        El price listener ya envia los datos pre-parseados.
 
         Args:
             instrument: Identificador del instrumento (ej: "bm_MERV_AL30_CI")
-            message_data: Datos parseados del mensaje
+            data: Datos del campo "data" del mensaje del price listener
         """
-        if instrument not in self.data:
-            self.data[instrument] = {
-                "bid": None,
-                "ask": None,
-                "last": None,
-                "bid_size": None,
-                "ask_size": None,
-                "book": {"bids": [], "asks": []},
-                "updated_at": None
-            }
-
-        market_data = self.data[instrument]
-
-        # Actualizar desde mensaje M: (market data simple)
-        if "LA" in message_data:
-            try:
-                market_data["last"] = float(message_data["LA"])
-            except (ValueError, TypeError):
-                pass
-
-        if "BI" in message_data:
-            try:
-                market_data["bid"] = float(message_data["BI"])
-            except (ValueError, TypeError):
-                pass
-
-        if "OF" in message_data:
-            try:
-                market_data["ask"] = float(message_data["OF"])
-            except (ValueError, TypeError):
-                pass
-
-        if "BIDS" in message_data:
-            try:
-                market_data["bid_size"] = int(message_data["BIDS"])
-            except (ValueError, TypeError):
-                pass
-
-        if "OFFS" in message_data:
-            try:
-                market_data["ask_size"] = int(message_data["OFFS"])
-            except (ValueError, TypeError):
-                pass
-
-        # Actualizar desde mensaje B: (book con niveles)
-        if "bids" in message_data:
-            try:
-                bids = []
-                for bid in message_data["bids"]:
-                    price = float(bid.get("price", 0))
-                    size = int(bid.get("size", 0))
-                    if price > 0 and size > 0:
-                        bids.append([price, size])
-                market_data["book"]["bids"] = sorted(bids, key=lambda x: x[0], reverse=True)
-
-                if bids:
-                    market_data["bid"] = bids[0][0]
-                    market_data["bid_size"] = bids[0][1]
-            except (ValueError, TypeError, KeyError):
-                pass
-
-        if "asks" in message_data:
-            try:
-                asks = []
-                for ask in message_data["asks"]:
-                    price = float(ask.get("price", 0))
-                    size = int(ask.get("size", 0))
-                    if price > 0 and size > 0:
-                        asks.append([price, size])
-                market_data["book"]["asks"] = sorted(asks, key=lambda x: x[0])
-
-                if asks:
-                    market_data["ask"] = asks[0][0]
-                    market_data["ask_size"] = asks[0][1]
-            except (ValueError, TypeError, KeyError):
-                pass
-
-        market_data["updated_at"] = datetime.now()
+        self.data[instrument] = {
+            "bid": data.get("bid"),
+            "ask": data.get("ask"),
+            "last": data.get("last"),
+            "bid_size": data.get("bid_size"),
+            "ask_size": data.get("ask_size"),
+            "book": data.get("book", {"bids": [], "asks": []}),
+            "updated_at": data.get("updated_at") or datetime.now().isoformat()
+        }
 
     def get_market_data(self, instrument: str) -> Optional[dict]:
         """Obtiene los datos de mercado para un instrumento."""
@@ -126,8 +59,8 @@ class MarketDataCache:
 
         book = market_data["book"]
         return {
-            "bids": book["bids"][:num_levels],
-            "asks": book["asks"][:num_levels]
+            "bids": book.get("bids", [])[:num_levels],
+            "asks": book.get("asks", [])[:num_levels]
         }
 
     def get_all_instruments(self) -> list[str]:

@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matriz Orders - Documentacion</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #0d1117;
+            color: #c9d1d9;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #30363d;
+            background: #161b22;
+        }
+        .header h1 { color: #58a6ff; font-size: 1.3em; }
+        .header a { color: #8b949e; text-decoration: none; font-size: 0.9em; }
+        .header a:hover { color: #58a6ff; }
+        .container { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
+        h2 {
+            color: #58a6ff;
+            font-size: 1.2em;
+            margin: 30px 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #30363d;
+        }
+        h2:first-child { margin-top: 0; }
+        h3 { color: #c9d1d9; font-size: 1em; margin: 20px 0 10px 0; }
+        p { margin-bottom: 10px; color: #8b949e; }
+        code {
+            background: #161b22;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #e6edf3;
+        }
+        pre {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 15px;
+            overflow-x: auto;
+            margin: 10px 0 15px 0;
+            font-size: 0.85em;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; }
+        .endpoint {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0 15px 0;
+        }
+        .method {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .method.get { background: #238636; color: white; }
+        .method.post { background: #1f6feb; color: white; }
+        .method.ws { background: #d29922; color: white; }
+        .method.redis { background: #da3633; color: white; }
+        .path { color: #e6edf3; font-weight: bold; }
+        .desc { color: #8b949e; margin-top: 8px; font-size: 0.9em; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0 15px 0;
+            font-size: 0.85em;
+        }
+        th, td {
+            text-align: left;
+            padding: 8px 12px;
+            border-bottom: 1px solid #21262d;
+        }
+        th { color: #8b949e; font-weight: normal; text-transform: uppercase; font-size: 0.85em; }
+        td { color: #c9d1d9; }
+        td code { font-size: 0.95em; }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+        .badge.pub { background: rgba(218, 54, 51, 0.2); color: #f85149; border: 1px solid rgba(218, 54, 51, 0.3); }
+        .badge.sub { background: rgba(35, 134, 54, 0.2); color: #3fb950; border: 1px solid rgba(35, 134, 54, 0.3); }
+        .toc { margin: 20px 0; }
+        .toc a { color: #58a6ff; text-decoration: none; display: block; padding: 4px 0; }
+        .toc a:hover { text-decoration: underline; }
+        .note {
+            background: rgba(210, 153, 34, 0.1);
+            border: 1px solid rgba(210, 153, 34, 0.3);
+            border-radius: 6px;
+            padding: 12px 15px;
+            margin: 10px 0;
+            font-size: 0.9em;
+            color: #d29922;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>MATRIZ ORDERS - DOCUMENTACION</h1>
+        <div>
+            <a href="/">Monitor</a> &nbsp;|&nbsp;
+            <a href="/docs">Swagger UI</a>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <div class="toc">
+            <h2>Contenido</h2>
+            <a href="#overview">1. Overview</a>
+            <a href="#api-rest">2. API REST</a>
+            <a href="#redis">3. Redis Pub/Sub</a>
+            <a href="#websocket">4. WebSocket</a>
+            <a href="#config">5. Configuracion</a>
+        </div>
+
+        <!-- ==================== OVERVIEW ==================== -->
+        <h2 id="overview">1. Overview</h2>
+
+        <p>Matriz Orders es un servicio que gestiona ordenes en la plataforma Matriz/EcoBolsar.
+        Recibe datos de mercado via Redis (producidos por el price listener) y publica eventos de ordenes
+        para que otros servicios puedan reaccionar.</p>
+
+        <h3>Modos de operacion</h3>
+        <table>
+            <tr><th>Modo</th><th>Descripcion</th></tr>
+            <tr><td><code>prod</code></td><td>Las ordenes se envian al broker real. El order listener se conecta al WebSocket de Matriz para recibir confirmaciones.</td></tr>
+            <tr><td><code>paper</code></td><td>Las ordenes se simulan localmente. Las ordenes market se ejecutan al precio del cache Redis. Las ordenes limit se ejecutan cuando el precio de mercado cruza el limite.</td></tr>
+        </table>
+
+        <!-- ==================== API REST ==================== -->
+        <h2 id="api-rest">2. API REST</h2>
+
+        <p>Base URL: <code>http://localhost:8005</code></p>
+        <p>Documentacion interactiva (Swagger): <a href="/docs" style="color:#58a6ff">/docs</a></p>
+
+        <h3>Ordenes</h3>
+
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <span class="path">/api/orders</span>
+            <div class="desc">Colocar una nueva orden</div>
+<pre><code>// Request
+{
+    "ticker": "AL30",
+    "term": "CI",              // "CI" | "24hs"
+    "side": "1",               // "1" = compra, "2" = venta
+    "order_type": "1",         // "1" = market, "2" = limit
+    "quantity": 100,
+    "price": 75000.50,         // requerido si order_type = "2" y price_source = "manual"
+    "price_source": "manual"   // "manual" | "bid1" | "bid2" | "bid3" | "offer1" | "offer2" | "offer3"
+}
+
+// Response
+{
+    "success": true,
+    "order": {
+        "id": 1,
+        "broker_order_id": "01KJ...",
+        "front_id": "177...",
+        "status": "placed",
+        "mode": "prod"
+    },
+    "message": "Orden colocada exitosamente (modo: prod)"
+}</code></pre>
+        </div>
+
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <span class="path">/api/orders/{order_id}/cancel</span>
+            <div class="desc">Cancelar una orden existente</div>
+<pre><code>// Response
+{
+    "success": true,
+    "order": { "id": 1, "status": "canceled" },
+    "message": "Orden cancelada exitosamente"
+}</code></pre>
+        </div>
+
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span class="path">/api/orders</span>
+            <div class="desc">Obtener ordenes del dia filtradas por modo actual</div>
+<pre><code>// Response
+{
+    "orders": [
+        {
+            "id": 1,
+            "broker_order_id": "01KJ...",
+            "front_id": "177...",
+            "account": "73739",
+            "side": "1",
+            "side_text": "COMPRA",
+            "quantity": 100,
+            "instrument": "bm_MERV_AL30_CI",
+            "order_type": "2",
+            "order_type_text": "LIMIT",
+            "price": 75000.50,
+            "total_amount": 7500050.0,
+            "status": "filled",
+            "mode": "prod",
+            "operated_size": 100,
+            "operated_volume": 7500050.0,
+            "placed": "2026-02-25T12:00:00",
+            "confirmed": "2026-02-25T12:00:01",
+            "filled": "2026-02-25T12:00:05",
+            "canceled": null
+        }
+    ],
+    "mode": "prod",
+    "mode_filter": "prod"
+}</code></pre>
+        </div>
+
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span class="path">/api/orders/messages/{order_id}</span>
+            <div class="desc">Buscar mensajes de estado en los logs del dia para una orden</div>
+        </div>
+
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span class="path">/api/orders/config</span>
+            <div class="desc">Obtener tickers y plazos disponibles para el formulario de ordenes</div>
+        </div>
+
+        <h3>Market Data</h3>
+
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span class="path">/api/market/book</span>
+            <div class="desc">Obtener datos del book actual (precios y niveles) para todos los instrumentos con datos en cache</div>
+<pre><code>// Response
+{
+    "book": {
+        "bm_MERV_AL30_CI": {
+            "bid": 75000.0,
+            "ask": 75100.0,
+            "last": 75050.0,
+            "bid_size": 1000,
+            "ask_size": 500,
+            "book": {
+                "bids": [[75000.0, 1000], [74900.0, 500], [74800.0, 200]],
+                "asks": [[75100.0, 500], [75200.0, 300], [75300.0, 400]]
+            },
+            "updated_at": "2026-02-25T12:30:00.123456"
+        }
+    }
+}</code></pre>
+        </div>
+
+        <h3>Sistema</h3>
+
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span class="path">/api/status</span>
+            <div class="desc">Estado del sistema (order processor y modo)</div>
+        </div>
+
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span class="path">/api/session/config</span>
+            <div class="desc">Configuracion de la sesion (account_id, dias de caucion)</div>
+        </div>
+
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <span class="path">/api/session/config</span>
+            <div class="desc">Actualizar dias de caucion</div>
+<pre><code>// Request
+{ "min_caucion_days": 1 }</code></pre>
+        </div>
+
+        <!-- ==================== REDIS ==================== -->
+        <h2 id="redis">3. Redis Pub/Sub</h2>
+
+        <h3>Conexion</h3>
+
+        <table>
+            <tr><th>Parametro</th><th>Valor por defecto</th><th>Variable de entorno</th></tr>
+            <tr><td>Host</td><td><code>localhost</code></td><td><code>REDIS_HOST</code></td></tr>
+            <tr><td>Puerto</td><td><code>6379</code></td><td><code>REDIS_PORT</code></td></tr>
+            <tr><td>Password</td><td><code>(vacio)</code></td><td><code>REDIS_PASSWORD</code></td></tr>
+            <tr><td>DB</td><td><code>0</code></td><td><code>REDIS_DB</code></td></tr>
+        </table>
+
+        <h3>Canal: <code>order_events</code> <span class="badge pub">PUBLICA</span></h3>
+
+        <p>Matriz Orders publica en este canal cada mensaje O: o E: que recibe del broker (o que simula en modo paper).
+        Los mensajes se publican en formato raw, tal como llegan del WebSocket de Matriz.</p>
+
+        <p>Para suscribirse:</p>
+<pre><code>redis-cli SUBSCRIBE order_events</code></pre>
+
+        <p>Tipos de mensaje:</p>
+        <table>
+            <tr><th>Prefijo</th><th>Tipo</th><th>Descripcion</th></tr>
+            <tr><td><code>O:</code></td><td>Order Tick</td><td>Cambio de estado de una orden (placed, confirmed, partial, filled, canceled)</td></tr>
+            <tr><td><code>E:</code></td><td>Order Event</td><td>Evento asociado a una orden</td></tr>
+        </table>
+
+        <p>Formato del mensaje O: (el prefijo <code>O:</code> seguido de JSON):</p>
+<pre><code>O:{"id":"01KJ...","ordStatus":"2","execType":"F","securityId":"bm_MERV_AL30_CI",
+   "account":"73739","side":"1","ordType":"2","clOrdId":"abc123",
+   "frontId":"177...","orderQty":"100","price":"75000.5",
+   "avgPx":"75000.5","lastPx":"75000.5","lastQty":"100",
+   "cumQty":"100","leavesQty":"0",...}</code></pre>
+
+        <p>Campos clave:</p>
+        <table>
+            <tr><th>Campo</th><th>Descripcion</th></tr>
+            <tr><td><code>id</code></td><td>ID unico de la orden en el broker</td></tr>
+            <tr><td><code>ordStatus</code></td><td><code>0</code>=new, <code>1</code>=partial, <code>2</code>=filled, <code>4</code>=canceled</td></tr>
+            <tr><td><code>execType</code></td><td><code>0</code>=new, <code>1</code>=partial, <code>F</code>=fill, <code>4</code>=cancel</td></tr>
+            <tr><td><code>securityId</code></td><td>Instrumento (ej: <code>bm_MERV_AL30_CI</code>)</td></tr>
+            <tr><td><code>side</code></td><td><code>1</code>=compra, <code>2</code>=venta</td></tr>
+            <tr><td><code>ordType</code></td><td><code>1</code>=market, <code>2</code>=limit</td></tr>
+            <tr><td><code>orderQty</code></td><td>Cantidad original</td></tr>
+            <tr><td><code>cumQty</code></td><td>Cantidad acumulada ejecutada</td></tr>
+            <tr><td><code>leavesQty</code></td><td>Cantidad pendiente</td></tr>
+            <tr><td><code>lastPx</code></td><td>Precio de la ultima ejecucion</td></tr>
+            <tr><td><code>avgPx</code></td><td>Precio promedio de ejecucion</td></tr>
+            <tr><td><code>frontId</code></td><td>ID interno del front-end</td></tr>
+            <tr><td><code>account</code></td><td>Numero de cuenta</td></tr>
+        </table>
+
+        <div class="note">
+            En modo <code>paper</code>, los campos que no aplican (como <code>transactTime</code>, <code>orderId</code>, etc.)
+            contienen el valor <code>"paper"</code>. El campo <code>text</code> indica el tipo de simulacion
+            (ej: <code>"paper - Market Order Filled"</code>, <code>"paper - Limit Order Partial @ 75000.5"</code>).
+        </div>
+
+        <p>Variable de entorno para el nombre del canal: <code>REDIS_ORDER_EVENTS_CHANNEL</code> (default: <code>order_events</code>)</p>
+
+        <h3>Canales: <code>prices:{TICKER}</code> <span class="badge sub">CONSUME</span></h3>
+
+        <p>Matriz Orders se suscribe a estos canales para recibir datos de mercado del price listener.
+        Un canal por cada ticker configurado (ej: <code>prices:AL30</code>).</p>
+
+        <p>Formato del mensaje (JSON publicado por el price listener):</p>
+<pre><code>{
+    "instrument": "bm_MERV_AL30_CI",
+    "ticker": "AL30",
+    "term": "CI",
+    "data": {
+        "bid": 75000.0,
+        "ask": 75100.0,
+        "last": 75050.0,
+        "bid_size": 1000,
+        "ask_size": 500,
+        "book": {
+            "bids": [[75000.0, 1000], [74900.0, 500], [74800.0, 200]],
+            "asks": [[75100.0, 500], [75200.0, 300], [75300.0, 400]]
+        },
+        "updated_at": "2026-02-25T12:30:00.123456"
+    },
+    "timestamp": "2026-02-25T12:30:00.123456"
+}</code></pre>
+
+        <p>Estos datos alimentan el cache interno usado por <code>/api/market/book</code>,
+        la ejecucion de ordenes market en paper, y la simulacion de ordenes limit en paper.</p>
+
+        <p>Al iniciar, Matriz Orders se registra automaticamente en el price listener via
+        <code>POST {PRICE_LISTENER_URL}/api/subscribers</code>.</p>
+
+        <!-- ==================== WEBSOCKET ==================== -->
+        <h2 id="websocket">4. WebSocket</h2>
+
+        <div class="endpoint">
+            <span class="method ws">WS</span>
+            <span class="path">ws://localhost:8005/ws</span>
+            <div class="desc">Actualizaciones en tiempo real para la UI</div>
+        </div>
+
+        <p>Al conectar, el servidor envia el estado inicial:</p>
+<pre><code>{
+    "type": "initial_state",
+    "data": {
+        "order_processor": {
+            "status": "Running",
+            "message_count": 42,
+            "last_message_time": "2026-02-25T12:30:00",
+            "uptime_seconds": 3600
+        },
+        "mode": "prod",
+        "redis_message_count": 1500
+    }
+}</code></pre>
+
+        <p>Actualizaciones incrementales:</p>
+<pre><code>// Cambio de estado del order listener
+{ "type": "state_update", "data": { "order_listener": { "status": "Running", "message_count": 43 } } }
+
+// Nuevo mensaje de orden procesado
+{ "type": "state_update", "data": { "order_message": { "count": 43, "timestamp": "..." } } }
+
+// Contador de mensajes Redis (market data)
+{ "type": "state_update", "data": { "redis_message_count": 1501 } }</code></pre>
+
+        <!-- ==================== CONFIG ==================== -->
+        <h2 id="config">5. Configuracion</h2>
+
+        <p>Variables de entorno (archivo <code>.env</code>):</p>
+
+        <table>
+            <tr><th>Variable</th><th>Default</th><th>Descripcion</th></tr>
+            <tr><td><code>MATRIZ_USERNAME</code></td><td><em>requerido</em></td><td>Usuario de Matriz/EcoBolsar</td></tr>
+            <tr><td><code>MATRIZ_PASSWORD</code></td><td><em>requerido</em></td><td>Password de Matriz/EcoBolsar</td></tr>
+            <tr><td><code>MATRIZ_HOST</code></td><td><code>matriz.eco.xoms.com.ar</code></td><td>Host del broker</td></tr>
+            <tr><td><code>MONITOR_PORT</code></td><td><code>8005</code></td><td>Puerto del servicio</td></tr>
+            <tr><td><code>MODE</code></td><td><code>paper</code></td><td>Modo de operacion: <code>prod</code> o <code>paper</code></td></tr>
+            <tr><td><code>TICKERS</code></td><td><code>AL30</code></td><td>Tickers a suscribir (separados por coma)</td></tr>
+            <tr><td><code>PRICE_LISTENER_URL</code></td><td><code>http://localhost:8000</code></td><td>URL del price listener para registro</td></tr>
+            <tr><td><code>REDIS_HOST</code></td><td><code>localhost</code></td><td>Host de Redis</td></tr>
+            <tr><td><code>REDIS_PORT</code></td><td><code>6379</code></td><td>Puerto de Redis</td></tr>
+            <tr><td><code>REDIS_PASSWORD</code></td><td><em>vacio</em></td><td>Password de Redis</td></tr>
+            <tr><td><code>REDIS_ORDER_EVENTS_CHANNEL</code></td><td><code>order_events</code></td><td>Canal Redis para publicar eventos de ordenes</td></tr>
+        </table>
+
+        <h3>Flujo de estado de ordenes</h3>
+<pre><code>placed --> confirmed --> partial --> filled
+                    \                /
+                     --> canceled --> confirmed_canceled</code></pre>
+
+    </div>
+</body>
+</html>

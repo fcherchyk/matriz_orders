@@ -10,6 +10,7 @@ load_dotenv()
 class RedisOrderEventPublisher:
     """
     Publica mensajes de eventos de ordenes (O:/E:) al canal Redis.
+    Reconecta automaticamente si Redis no estaba disponible al inicio.
     """
 
     def __init__(self):
@@ -20,6 +21,24 @@ class RedisOrderEventPublisher:
         """Configura la conexion Redis."""
         self._redis = redis_client
 
+    async def _ensure_redis(self) -> bool:
+        """Intenta obtener conexion Redis si no hay una."""
+        if self._redis is not None:
+            try:
+                await self._redis.ping()
+                return True
+            except Exception:
+                self._redis = None
+
+        try:
+            from redis_client import get_redis
+            self._redis = await get_redis()
+            await self._redis.ping()
+            return True
+        except Exception:
+            self._redis = None
+            return False
+
     async def publish(self, message: str):
         """
         Publica un mensaje al canal de eventos de ordenes.
@@ -27,10 +46,11 @@ class RedisOrderEventPublisher:
         Args:
             message: Mensaje crudo (ej: "O:{json}" o "E:{json}")
         """
-        if self._redis is None:
+        if not await self._ensure_redis():
             return
 
         try:
             await self._redis.publish(self.channel, message)
         except Exception as e:
             print(f"[RedisOrderEventPublisher] Error publicando: {e}")
+            self._redis = None

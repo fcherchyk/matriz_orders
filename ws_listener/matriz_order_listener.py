@@ -3,15 +3,16 @@ import websockets
 from websockets.exceptions import ConnectionClosedError
 from ws_listener.matriz_websocket_listener import MatrizWebsocketListener
 
+APP_PING_INTERVAL = 40  # seconds, same as Matriz web client
+
 
 class MatrizOrderListener(MatrizWebsocketListener):
 
-    def __init__(self, message_processor, session=None, ping_interval: int = 10, ping_timeout: int = 8):
-        print(f"[MatrizOrderListener] __init__ - session provided: {session is not None}, ping_interval={ping_interval}, ping_timeout={ping_timeout}")
+    def __init__(self, message_processor, session=None):
+        print(f"[MatrizOrderListener] __init__ - session provided: {session is not None}")
         super().__init__(message_processor, session)
-        self.ping_interval = ping_interval
-        self.ping_timeout = ping_timeout
         self.receiving = False
+        self._ping_task = None
 
     async def run(self):
         print(f"[MatrizOrderListener] run() iniciado")
@@ -22,7 +23,24 @@ class MatrizOrderListener(MatrizWebsocketListener):
             print(f"[MatrizOrderListener] Error en run(): {e}")
             raise
         finally:
+            if self._ping_task and not self._ping_task.done():
+                self._ping_task.cancel()
             print(f"[MatrizOrderListener] run() finalizado")
+
+    async def _app_level_ping(self):
+        """
+        Envia 'ping' como texto cada 40s, igual que el cliente JS de Matriz.
+        El servidor espera este ping de aplicacion (no pings de protocolo WS).
+        """
+        try:
+            while True:
+                await asyncio.sleep(APP_PING_INTERVAL)
+                if self.websocket:
+                    await self.websocket.send("ping")
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            print(f"[MatrizOrderListener] Error en app-level ping: {e}")
 
     async def connect(self):
         print(f"[MatrizOrderListener] connect() - Iniciando conexión...")
@@ -36,21 +54,20 @@ class MatrizOrderListener(MatrizWebsocketListener):
             self.websocket = await websockets.connect(
                 self.uri,
                 origin=self.session.BASE_URL,
-                ping_interval=self.ping_interval,
-                ping_timeout=self.ping_timeout,
-                max_size=10 * 1024 * 1024,  # 10MB max message size (default is 1MB)
+                ping_interval=None,  # Deshabilitar pings de protocolo WS
+                ping_timeout=None,
+                max_size=10 * 1024 * 1024,
             )
             print(f"[MatrizOrderListener] WebSocket conectado")
         except Exception as e:
             print(f"[MatrizOrderListener] Error conectando WebSocket: {e}")
             raise
 
-        print(f"[MatrizOrderListener] Recibiendo mensajes iniciales...")
-        for i in range(3):  # 3 initial messages
-            msg = await self.websocket.recv()
-            print(f"[MatrizOrderListener] Mensaje inicial {i+1}: {msg[:100] if len(msg) > 100 else msg}")
+        # Iniciar ping de aplicacion (texto "ping" cada 40s, como el JS)
+        self._ping_task = asyncio.create_task(self._app_level_ping())
 
-        om = f"""{{"_req": "S", "topicType": "orderevent", "topics": ["orderevent.{self.session.requester.account}"], "replace": false}}"""
+        # Suscribir a orderevent con replace=true (como el JS)
+        om = f"""{{"_req": "S", "topicType": "orderevent", "topics": ["orderevent.{self.session.requester.account}"], "replace": true}}"""
 
         print(f"[MatrizOrderListener] Suscribiendo a orderevent para cuenta: {self.session.requester.account}...")
         await self.send_message(om)
@@ -63,12 +80,13 @@ class MatrizOrderListener(MatrizWebsocketListener):
         Los mensajes pueden venir como:
         - JSON array: ["O:{json}","E:{json}"]
         - String plano: O:{json} o E:{json}
-        - String con array de M: ["M:data1","M:data2"]
+        - String "pong" (respuesta al ping de aplicacion)
         """
-        # Debug: log del mensaje raw (primeros 500 chars para no llenar logs)
-        # print(f"[MatrizOrderListener] Mensaje raw ({len(message)} chars): {message[:500]}")
+        # Ignorar pong del servidor
+        if message == "pong":
+            return
 
-        # Caso 1: Mensaje plano que empieza con O: o E: (mensaje completo sin array)
+        # Caso 1: Mensaje plano que empieza con O: o E:
         if message.startswith('O:') or message.startswith('E:'):
             if not self.receiving:
                 print(f"[MatrizOrderListener] Primer mensaje de orden recibido! receiving=True")
@@ -89,20 +107,13 @@ class MatrizOrderListener(MatrizWebsocketListener):
                         await self.message_processor.process_direct(m)
                 return
         except (json.JSONDecodeError, ValueError):
-            # Si falla el parsing JSON, intentar fallback
             pass
-
-        # Caso 3: Fallback para mensajes M: (market data) que vienen como strings
-        # Solo procesamos si NO es un mensaje O/E (esos ya fueron manejados arriba)
-        if not (message.startswith('O:') or message.startswith('E:')):
-            # Los mensajes M pueden venir sin brackets, procesarlos directamente
-            if message.startswith('M:'):
-                # Es un mensaje de market data individual, no lo procesamos en order listener
-                pass
 
     async def close(self):
         """Cierra la conexión WebSocket de forma limpia"""
         print(f"[MatrizOrderListener] close() - Cerrando conexión...")
+        if self._ping_task and not self._ping_task.done():
+            self._ping_task.cancel()
         if self.websocket:
             try:
                 await self.websocket.close()
@@ -110,5 +121,3 @@ class MatrizOrderListener(MatrizWebsocketListener):
             except Exception as e:
                 print(f"[MatrizOrderListener] Error cerrando WebSocket: {e}")
         self.receiving = False
-
-
