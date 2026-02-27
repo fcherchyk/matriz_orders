@@ -267,6 +267,75 @@
 }</code></pre>
         </div>
 
+        <h3>Series / Velas (Candlesticks)</h3>
+
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span class="path">/api/series/{instrument}</span>
+            <div class="desc">Obtener velas/candlesticks para un instrumento. Cachea resoluciones base y soporta resoluciones derivadas por agregacion.</div>
+        </div>
+
+        <p>Parametros:</p>
+        <table>
+            <tr><th>Parametro</th><th>Tipo</th><th>Descripcion</th></tr>
+            <tr><td><code>instrument</code></td><td>path</td><td>Instrumento (ej: <code>bm_MERV_AL30_24hs</code>)</td></tr>
+            <tr><td><code>resolution</code></td><td>query</td><td>Resolucion: <code>1</code>, <code>5</code>, <code>15</code>, <code>30</code>, <code>1H</code>, <code>4H</code>, <code>D</code>, <code>S</code>, <code>M</code></td></tr>
+            <tr><td><code>from</code></td><td>query</td><td>Fecha inicio ISO 8601 (ej: <code>2026-02-26T13:00:00.000Z</code>)</td></tr>
+            <tr><td><code>to</code></td><td>query</td><td>Fecha fin ISO 8601 (ej: <code>2026-02-26T21:00:00.000Z</code>)</td></tr>
+        </table>
+
+        <p>Resoluciones soportadas:</p>
+        <table>
+            <tr><th>Resolucion</th><th>Base</th><th>Agrupacion</th></tr>
+            <tr><td><code>1</code></td><td>1 min</td><td>directa</td></tr>
+            <tr><td><code>5</code></td><td>1 min</td><td>5 velas de 1 min</td></tr>
+            <tr><td><code>15</code></td><td>1 min</td><td>15 velas de 1 min</td></tr>
+            <tr><td><code>30</code></td><td>1 min</td><td>30 velas de 1 min</td></tr>
+            <tr><td><code>1H</code></td><td>1 min</td><td>60 velas de 1 min</td></tr>
+            <tr><td><code>4H</code></td><td>1 min</td><td>240 velas de 1 min</td></tr>
+            <tr><td><code>D</code></td><td>diaria</td><td>directa</td></tr>
+            <tr><td><code>S</code></td><td>diaria</td><td>5 velas diarias (lun-vie)</td></tr>
+            <tr><td><code>M</code></td><td>diaria</td><td>velas del mes</td></tr>
+        </table>
+
+        <div class="note">
+            La resolucion base <code>1</code> (1 minuto) esta limitada a un maximo de 5 dias de historia.
+            Las resoluciones base se cachean en memoria; las derivadas se calculan al vuelo.
+        </div>
+
+        <p>Ejemplo:</p>
+<pre><code>curl "http://localhost:8005/api/series/bm_MERV_AL30_24hs?resolution=5&from=2026-02-26T13:00:00.000Z&to=2026-02-26T21:00:00.000Z"</code></pre>
+
+<pre><code>// Response
+{
+    "noData": false,
+    "series": [
+        {
+            "c": 86650.0,
+            "d": "2026-02-26T13:30:00Z",
+            "h": 87100.0,
+            "l": 86200.0,
+            "o": 87100.0,
+            "r": "5",
+            "sid": "bm_MERV_AL30_24hs",
+            "v": 53733.0
+        }
+    ]
+}</code></pre>
+
+        <p>Campos de cada vela:</p>
+        <table>
+            <tr><th>Campo</th><th>Descripcion</th></tr>
+            <tr><td><code>o</code></td><td>Open (precio de apertura)</td></tr>
+            <tr><td><code>h</code></td><td>High (maximo)</td></tr>
+            <tr><td><code>l</code></td><td>Low (minimo)</td></tr>
+            <tr><td><code>c</code></td><td>Close (precio de cierre)</td></tr>
+            <tr><td><code>v</code></td><td>Volume</td></tr>
+            <tr><td><code>d</code></td><td>Datetime (timestamp de la vela)</td></tr>
+            <tr><td><code>r</code></td><td>Resolution solicitada</td></tr>
+            <tr><td><code>sid</code></td><td>Security ID del instrumento</td></tr>
+        </table>
+
         <h3>Sistema</h3>
 
         <div class="endpoint">
