@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from datetime import datetime
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -15,6 +16,7 @@ from ws_listener.matriz_order_listener import MatrizOrderListener
 from ws_listener.message_processor.order_message_processor import OrderMessageProcessor
 from service.order_service import OrderService
 from service.matriz_session import MatrizSession
+from service.series_service import SeriesService
 from redis_client import get_redis, close_redis, RedisMarketDataSubscriber, RedisOrderEventPublisher
 
 load_dotenv()
@@ -27,6 +29,7 @@ order_service: OrderService = None
 matriz_session: MatrizSession = None
 redis_market_subscriber: RedisMarketDataSubscriber = None
 redis_order_publisher: RedisOrderEventPublisher = None
+series_service: SeriesService = None
 
 # Modo de operacion (puede cambiarse en runtime)
 app_mode: str = os.getenv('MODE', 'paper')
@@ -442,12 +445,16 @@ def on_paper_order(event_type: str, order):
 async def lifespan(app: FastAPI):
     """Maneja el ciclo de vida de la aplicacion"""
     global order_message_processor, order_task, order_service
-    global matriz_session, redis_market_subscriber, redis_order_publisher
+    global matriz_session, redis_market_subscriber, redis_order_publisher, series_service
 
     # Crear sesion unica compartida
     print(f"[Startup] Creando sesion unica de Matriz...")
     matriz_session = MatrizSession()
     print(f"[Startup] Sesion creada - session_id: {matriz_session.session_id[:20] if matriz_session.session_id else 'None'}...")
+
+    # Crear series service (usa requester de la sesion real)
+    series_service = SeriesService(matriz_session.requester)
+    print(f"[Startup] SeriesService creado")
 
     # Crear publisher y subscriber Redis
     # El publisher necesita conexion inmediata; el subscriber se conecta solo con reintentos
@@ -719,10 +726,35 @@ async def get_market_book():
                 'bid_size': market_data.get('bid_size'),
                 'ask_size': market_data.get('ask_size'),
                 'book': book_levels if book_levels else {'bids': [], 'asks': []},
-                'updated_at': market_data.get('updated_at').isoformat() if market_data.get('updated_at') else None
+                'updated_at': market_data.get('updated_at')
             }
 
     return {'book': book_data}
+
+
+@app.get("/api/series/{instrument}")
+async def get_series(instrument: str, request: Request, resolution: str = "1"):
+    """Obtener velas/candlesticks para un instrumento.
+    Resoluciones: 1, 5, 15, 30, 1H, 4H, D, S, M.
+    Params 'from' y 'to' en ISO 8601."""
+    global series_service
+
+    if not series_service:
+        return {'error': 'SeriesService no disponible'}
+
+    from_str = request.query_params.get("from")
+    to_str = request.query_params.get("to")
+
+    if not from_str or not to_str:
+        return {'error': 'Parametros "from" y "to" son requeridos (ISO 8601)'}
+
+    try:
+        from_dt = datetime.fromisoformat(from_str.replace("Z", "+00:00"))
+        to_dt = datetime.fromisoformat(to_str.replace("Z", "+00:00"))
+    except ValueError as e:
+        return {'error': f'Formato de fecha invalido: {e}'}
+
+    return series_service.get_series(instrument, resolution, from_dt, to_dt)
 
 
 class PlaceOrderRequest(BaseModel):
